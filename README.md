@@ -1,4 +1,4 @@
-# 🐨 Quokka AI
+# 🚀 NovaRAG
 **A High-Performance Hybrid RAG System for Intelligent Document Interaction**
 
 Quokka AI is an advanced Large Language Model (LLM) interface designed to bridge the gap between static AI responses and real-time data retrieval. By leveraging **Retrieval-Augmented Generation (RAG)** and **Llama-3**, Quokka allows users to interact with their own data through a seamless, responsive UI.
@@ -31,8 +31,7 @@ Quokka AI operates on a **Decoupled Architecture**:
 ---
 
 ## 👨‍💻 About the Developer
-**Rana Prathap Reddy**
-* **Current Focus:** Computer Science & Engineering Student
+**Rana Prathap Reddy** | **CSE Student**
 * **Academic Excellence:** 8.9 CGPA (Sem 2) | 8.45 CGPA (Sem 1)
 * **Core Skills:** AI Workflows, RPA (Automation Anywhere), & Full-Stack Development.
 
