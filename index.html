@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quokka Pro | Enterprise AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { dark: '#212121', darker: '#171717', primary: '#3b82f6' } } } }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #212121; color: #ececec; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #424242; border-radius: 10px; }
+        
+        .markdown h1, .markdown h2, .markdown h3 { color: white; font-weight: 600; margin-top: 1rem; margin-bottom: 0.5rem; }
+        .markdown p { margin-bottom: 1rem; line-height: 1.6; }
+        .markdown ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1rem; }
+        .markdown code { background-color: #2f2f2f; padding: 0.2rem 0.4rem; border-radius: 0.375rem; font-family: monospace; color: #93c5fd; }
+        .markdown pre { background-color: #0d0d0d; padding: 1.25rem; border-radius: 0.75rem; overflow-x: auto; margin-bottom: 1.5rem; border: 1px solid #333; }
+        .markdown pre code { background-color: transparent; color: #e5e7eb; padding: 0; }
+        
+        .glass-input { background: rgba(47, 47, 47, 0.7); backdrop-filter: blur(10px); border: 1px solid #424242; }
+        .glass-input:focus-within { border-color: #525252; background: rgba(47, 47, 47, 0.9); }
+
+        @keyframes slideIn { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .toast-enter { animation: slideIn 0.3s ease-out forwards; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden antialiased">
+
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2"></div>
+
+    <div class="w-64 bg-darker border-r border-[#333] flex flex-col z-20">
+        <div class="p-5 flex items-center gap-3 m-2 rounded-xl">
+            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
+                <i class="fa-solid fa-bolt text-sm"></i></div>
+            <div>
+                <h1 class="font-semibold text-sm tracking-wide">Quokka Pro</h1>
+                <p class="text-[10px] text-gray-400 font-medium">AGENTIC EDITION</p>
+            </div>
+        </div>
+
+        <div class="px-4 py-2">
+            <button onclick="clearChat()" class="w-full flex items-center gap-3 bg-white text-black font-medium px-4 py-2.5 rounded-lg hover:bg-gray-200 transition-all text-sm shadow-sm">
+                <i class="fa-solid fa-plus"></i> New Chat
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+            <div class="flex items-center justify-between mb-3 px-2">
+                <p class="text-xs font-semibold text-gray-500">Local History</p>
+                <button onclick="clearHistory()" class="text-xs text-red-400 hover:text-red-300"><i class="fa-solid fa-trash"></i></button>
+            </div>
+            <div id="history-list"></div>
+        </div>
+
+        <div class="p-4 border-t border-[#333] flex items-center justify-between">
+            <div class="flex items-center gap-3 hover:bg-[#2f2f2f] p-2 rounded-xl transition-colors flex-1 text-left cursor-pointer">
+                <img src="https://ui-avatars.com/api/?name=Admin&background=333&color=fff" class="w-8 h-8 rounded-full">
+                <div>
+                    <p class="text-sm font-medium text-white" id="username-display">Admin User</p>
+                    <p class="text-[11px] text-blue-400">Local Environment</p>
+                </div>
+            </div>
+            <button onclick="toggleSettings()" class="p-2 hover:bg-[#2f2f2f] rounded-lg text-gray-400 hover:text-white transition-colors">
+                <i class="fa-solid fa-gear"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="flex-1 flex flex-col bg-dark h-screen relative">
+        
+        <div class="h-14 border-b border-[#333] flex items-center justify-between px-6 bg-dark/80 backdrop-blur-md flex-shrink-0">
+            <div class="flex items-center gap-2 text-blue-400 px-3 py-1.5 rounded-lg bg-blue-500/10">
+                <i class="fa-solid fa-microchip text-xs"></i>
+                <span class="font-medium text-sm">Auto-Routing Active</span>
+            </div>
+            <button onclick="shareChat()" class="text-gray-400 hover:text-white transition-colors bg-[#2f2f2f] px-3 py-1.5 rounded-lg text-sm flex items-center gap-2">
+                <i class="fa-solid fa-share-nodes"></i> Share
+            </button>
+        </div>
+
+        <div id="chat-box" class="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth">
+            <div id="welcome-screen" class="h-full flex flex-col items-center justify-center text-center max-w-2xl mx-auto opacity-80 pb-10">
+                <div class="w-16 h-16 rounded-2xl bg-[#2f2f2f] flex items-center justify-center mb-6 shadow-xl border border-[#424242]">
+                    <i class="fa-solid fa-bolt text-2xl text-white animate-pulse"></i>
+                </div>
+                <h2 class="text-2xl font-semibold mb-2 text-white">How can I help you today?</h2>
+                <p class="text-gray-400 text-sm mb-8">The AI will automatically analyze your question and adopt the correct expert persona.</p>
+                
+                <div class="grid grid-cols-2 gap-3 w-full">
+                    <button onclick="document.getElementById('chat-input').value='Optimize this C++ code for formatting decimals:'; document.getElementById('chat-input').focus();" class="bg-[#2f2f2f] hover:bg-[#424242] p-4 rounded-xl text-left border border-[#333] transition-colors">
+                        <p class="text-sm text-gray-200 font-medium">Code Analysis</p>
+                        <p class="text-xs text-gray-500 mt-1">Review C++ syntax</p>
+                    </button>
+                    <button onclick="document.getElementById('chat-input').value='Explain the Bravais-Morris indices in Perovskites.'; document.getElementById('chat-input').focus();" class="bg-[#2f2f2f] hover:bg-[#424242] p-4 rounded-xl text-left border border-[#333] transition-colors">
+                        <p class="text-sm text-gray-200 font-medium">Material Science</p>
+                        <p class="text-xs text-gray-500 mt-1">Deep dive concepts</p>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-4 md:p-6 bg-dark border-t border-[#333] flex-shrink-0 relative">
+            <div class="max-w-3xl mx-auto relative">
+                <div id="status-bar" class="absolute -top-8 left-4 text-xs font-medium tracking-wide text-blue-400 hidden flex items-center gap-2">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i> <span id="status-text">Generating...</span>
+                </div>
+
+                <div class="glass-input rounded-2xl flex flex-col px-4 py-3 shadow-2xl transition-all">
+                    <textarea id="chat-input" rows="1" placeholder="Ask Quokka Pro anything..." class="w-full bg-transparent text-white placeholder-gray-500 focus:outline-none resize-none text-base py-2" oninput="this.style.height = '';this.style.height = this.scrollHeight + 'px'"></textarea>
+                    
+                    <div class="flex items-center justify-between mt-2 pt-2 border-t border-[#424242]">
+                        <div class="flex items-center gap-1">
+                            <label class="cursor-pointer text-gray-400 hover:text-white hover:bg-[#424242] p-2 rounded-lg transition-colors relative group">
+                                <i class="fa-solid fa-paperclip text-lg"></i>
+                                <input type="file" id="pdf-upload" accept=".pdf" class="hidden">
+                                <span class="absolute -top-8 left-0 bg-black text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity">Attach PDF</span>
+                            </label>
+
+                            <button id="web-btn" onclick="toggleWebSearch()" class="text-gray-400 hover:text-white hover:bg-[#424242] p-2 rounded-lg transition-colors relative group">
+                                <i class="fa-solid fa-globe text-lg"></i>
+                                <span class="absolute -top-8 left-0 bg-black text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity">Web Search</span>
+                            </button>
+                            <span id="upload-status" class="text-xs font-medium ml-2 hidden"></span>
+                        </div>
+                        <button onclick="sendMessage()" class="bg-white text-black hover:bg-gray-200 p-2 rounded-xl transition-all w-10 h-10 flex items-center justify-center">
+                            <i class="fa-solid fa-arrow-up"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center transition-opacity">
+        <div class="bg-darker border border-[#333] w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div class="p-5 border-b border-[#333] flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-white">Engine Settings</h3>
+                <button onclick="toggleSettings()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="p-5 space-y-6">
+                <div>
+                    <label class="flex justify-between text-sm font-medium text-gray-300 mb-2">
+                        <span>Temperature (Accuracy)</span>
+                        <span id="temp-display" class="text-blue-400 font-bold">0.4</span>
+                    </label>
+                    <input type="range" id="setting-temp" min="0.1" max="1.0" step="0.1" value="0.4" class="w-full accent-blue-500" oninput="document.getElementById('temp-display').innerText = this.value">
+                    <p class="text-xs text-gray-500 mt-2">Lower = More precise/factual. Higher = More creative.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Username</label>
+                    <input type="text" id="setting-username" value="Admin User" class="w-full bg-[#2f2f2f] border border-[#424242] text-white rounded-lg p-3 text-sm focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+            <div class="p-4 bg-[#2f2f2f] border-t border-[#333] flex justify-end">
+                <button onclick="saveSettings()" class="bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-500 transition-colors shadow-lg">Save Configuration</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 🔴🔴🔴 PASTE YOUR COLAB API URL HERE (No trailing slash) 🔴🔴🔴
+        const API_URL = "https://dissatisfiedly-cutcha-venice.ngrok-free.dev"; 
+
+        let chatHistory = [];
+        let useWebSearch = false;
+        let activeTemp = 0.4; // Default to a more accurate temperature
+
+        const chatBox = document.getElementById('chat-box');
+        const chatInput = document.getElementById('chat-input');
+        
+        // --- LocalStorage History System ---
+        function loadHistory() {
+            const saved = localStorage.getItem('quokka_history');
+            if (saved) {
+                chatHistory = JSON.parse(saved);
+                if(chatHistory.length > 0) {
+                    chatBox.innerHTML = '';
+                    chatHistory.forEach(msg => addMessage(msg.content, msg.role === 'user' ? 'user' : 'bot', true));
+                }
+            }
+            updateHistorySidebar();
+        }
+
+        function updateHistorySidebar() {
+            const list = document.getElementById('history-list');
+            list.innerHTML = '';
+            if(chatHistory.length > 0) {
+                const title = chatHistory[0].content.substring(0, 25) + "...";
+                list.innerHTML = `<button class="w-full text-left text-sm text-gray-300 hover:bg-[#2f2f2f] hover:text-white py-2 px-3 rounded-lg truncate transition-colors"><i class="fa-regular fa-message mr-2 text-gray-500"></i> ${title}</button>`;
+            }
+        }
+
+        function saveLocalData() {
+            localStorage.setItem('quokka_history', JSON.stringify(chatHistory));
+            updateHistorySidebar();
+        }
+
+        function clearHistory() {
+            localStorage.removeItem('quokka_history');
+            clearChat();
+        }
+
+        // Run on load
+        window.onload = () => { loadHistory(); }
+
+        // --- UX Features ---
+        function showToast(message, type='success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const color = type === 'success' ? 'border-green-500 text-green-400' : type === 'warning' ? 'border-yellow-500 text-yellow-400' : 'border-blue-500 text-blue-400';
+            const icon = type === 'success' ? 'fa-check-circle' : type === 'warning' ? 'fa-triangle-exclamation' : 'fa-circle-info';
+            
+            toast.className = `bg-darker border-l-4 ${color} shadow-2xl p-4 rounded-lg flex items-center gap-3 toast-enter min-w-[250px]`;
+            toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span class="text-sm font-medium text-white">${message}</span>`;
+            
+            container.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+        }
+
+        function shareChat() {
+            if(chatHistory.length === 0) { showToast('No chat to share yet!', 'warning'); return; }
+            let exportText = "Quokka Pro - Chat Transcript\n\n";
+            chatHistory.forEach(msg => { exportText += `${msg.role === 'user' ? 'YOU:' : 'QUOKKA:'}\n${msg.content}\n\n`; });
+            navigator.clipboard.writeText(exportText);
+            showToast('Chat copied to clipboard!', 'success');
+        }
+
+        function toggleSettings() { document.getElementById('settings-modal').classList.toggle('hidden'); }
+
+        function saveSettings() {
+            activeTemp = parseFloat(document.getElementById('setting-temp').value);
+            document.getElementById('username-display').innerText = document.getElementById('setting-username').value;
+            toggleSettings();
+            showToast(`Engine updated (Temp: ${activeTemp})`, 'success');
+        }
+
+        function clearChat() {
+            chatHistory = [];
+            chatBox.innerHTML = document.getElementById('welcome-screen').outerHTML;
+            saveLocalData();
+            showToast('Started a new conversation.', 'info');
+        }
+
+        function toggleWebSearch() {
+            useWebSearch = !useWebSearch;
+            const btn = document.getElementById('web-btn');
+            if(useWebSearch) {
+                btn.classList.replace('text-gray-400', 'text-blue-400');
+                btn.classList.add('bg-blue-500/10');
+                showToast('Live Web Search Enabled', 'success');
+            } else {
+                btn.classList.replace('text-blue-400', 'text-gray-400');
+                btn.classList.remove('bg-blue-500/10');
+            }
+        }
+
+        chatInput.addEventListener('keydown', (e) => { 
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+        });
+
+        // --- Core Functions ---
+        async function sendMessage() {
+            const text = chatInput.value.trim();
+            if (!text) return;
+
+            if(chatHistory.length === 0 && document.getElementById('welcome-screen')) chatBox.innerHTML = '';
+
+            addMessage(text, 'user');
+            chatInput.value = '';
+            chatInput.style.height = 'auto';
+            
+            document.getElementById('status-bar').classList.remove('hidden');
+            document.getElementById('status-text').innerText = useWebSearch ? "Searching the web..." : "Agent thinking...";
+
+            const botBubble = addMessage('', 'bot');
+            let botText = "";
+
+            try {
+                const response = await fetch(`${API_URL}/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+                    body: JSON.stringify({ message: text, history: chatHistory, use_web: useWebSearch, temperature: activeTemp })
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    botText += decoder.decode(value);
+                    botBubble.innerHTML = marked.parse(botText);
+                    
+                    botBubble.querySelectorAll('pre code').forEach(block => { block.style.color = '#93c5fd'; });
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                }
+
+                chatHistory.push({ role: "user", content: text });
+                chatHistory.push({ role: "assistant", content: botText });
+                saveLocalData(); // Save to browser storage!
+
+            } catch (err) {
+                botBubble.innerHTML = `<span class="text-red-400"><i class="fa-solid fa-triangle-exclamation"></i> API Error. Check Colab terminal.</span>`;
+            }
+
+            document.getElementById('status-bar').classList.add('hidden');
+        }
+
+        function addMessage(text, role, isHistoryLoad = false) {
+            const wrapper = document.createElement('div');
+            wrapper.className = `flex gap-4 mb-6 w-full max-w-4xl mx-auto ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+            
+            if (role === 'bot') {
+                const avatar = document.createElement('div');
+                avatar.className = "w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-md mt-1";
+                avatar.innerHTML = `<i class="fa-solid fa-bolt text-xs"></i>`;
+                wrapper.appendChild(avatar);
+            }
+
+            const bubble = document.createElement('div');
+            bubble.className = `max-w-[85%] ${role === 'user' ? 'bg-[#2f2f2f] text-white px-5 py-3 rounded-2xl rounded-tr-sm shadow-md' : 'bg-transparent text-gray-200 markdown'}`;
+            bubble.innerHTML = isHistoryLoad && role === 'bot' ? marked.parse(text) : text; 
+
+            wrapper.appendChild(bubble);
+            chatBox.appendChild(wrapper); 
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return bubble;
+        }
+    </script>
+</body>
+</html>
