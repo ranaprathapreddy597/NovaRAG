@@ -19,9 +19,17 @@ client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-embed_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+# LAZY LOADING: We do not download the model at startup anymore.
+embed_model = None
 vector_database = None
 cif_direct_memory = "" 
+
+def get_embed_model():
+    global embed_model
+    if embed_model is None:
+        print("First PDF uploaded! Initializing Embedding Engine now...")
+        embed_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    return embed_model
 
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
@@ -40,7 +48,11 @@ async def upload_file(file: UploadFile = File(...)):
 
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
             chunks = text_splitter.split_text(raw_text)
-            vector_database = FAISS.from_texts(chunks, embed_model)
+            
+            # The model is loaded here only when needed
+            active_model = get_embed_model()
+            vector_database = FAISS.from_texts(chunks, active_model)
+            
             return {"status": "success", "message": "Document indexed."}
 
         elif filename.endswith(".cif") or filename.endswith(".txt"):
@@ -90,7 +102,6 @@ async def chat_endpoint(req: ChatRequest):
 
         messages = [{"role": "system", "content": system_prompt}] + req.history[-6:] + [{"role": "user", "content": req.message}]
         
-        # Request stream from Groq
         stream = client.chat.completions.create(
             model="llama3-8b-8192",
             messages=messages,
