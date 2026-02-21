@@ -9,27 +9,27 @@ from typing import List, Dict
 import PyPDF2
 from duckduckgo_search import DDGS
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
+
+# NEW: We import the Cloud Inference API instead of the local PyTorch model
+from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
 from groq import Groq
 
-# Initialize Groq Client
+# Initialize Cloud Clients
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-# LAZY LOADING: We do not download the model at startup anymore.
-embed_model = None
 vector_database = None
 cif_direct_memory = "" 
 
-def get_embed_model():
-    global embed_model
-    if embed_model is None:
-        print("First PDF uploaded! Initializing Embedding Engine now...")
-        embed_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    return embed_model
+def get_cloud_embeddings():
+    # This sends the text to Hugging Face's servers to be converted into vectors, saving our RAM!
+    return HuggingFaceInferenceAPIEmbeddings(
+        api_key=os.environ.get("HF_TOKEN"),
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
+    )
 
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
@@ -46,24 +46,24 @@ async def upload_file(file: UploadFile = File(...)):
             
             if not raw_text.strip(): return {"status": "error", "message": "Empty PDF."}
 
-            text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=100)
             chunks = text_splitter.split_text(raw_text)
             
-            # The model is loaded here only when needed
-            active_model = get_embed_model()
-            vector_database = FAISS.from_texts(chunks, active_model)
+            # Use the cloud embedder to process the PDF chunks
+            cloud_embedder = get_cloud_embeddings()
+            vector_database = FAISS.from_texts(chunks, cloud_embedder)
             
-            return {"status": "success", "message": "Document indexed."}
+            return {"status": "success", "message": "Document vectorized via Cloud Architecture."}
 
         elif filename.endswith(".cif") or filename.endswith(".txt"):
             vector_database = None
             raw_data = await file.read()
             cif_direct_memory = raw_data.decode("utf-8")[:10000] 
-            return {"status": "success", "message": "CIF data injected."}
+            return {"status": "success", "message": "CIF structural data injected."}
         else:
             return {"status": "error", "message": "Use .pdf or .cif"}
     except Exception as e:
-        return {"status": "error", "message": f"Error: {str(e)}"}
+        return {"status": "error", "message": f"Pipeline Error: {str(e)}"}
 
 class ChatRequest(BaseModel):
     message: str
@@ -74,9 +74,9 @@ class ChatRequest(BaseModel):
 def search_web(query):
     try:
         results = list(DDGS().text(query, max_results=3))
-        return "\n".join([f"- {res['title']}: {res['body']}" for res in results]) if results else "No data."
+        return "\n".join([f"- {res['title']}: {res['body']}" for res in results]) if results else "No current data found."
     except:
-        return "Search failed."
+        return "Search network error."
 
 @app.post("/chat")
 async def chat_endpoint(req: ChatRequest):
@@ -85,14 +85,15 @@ async def chat_endpoint(req: ChatRequest):
         system_prompt = """You are NovaRAG, an elite Enterprise AI. 
         CRITICAL INSTRUCTIONS:
         1. When asked about Material Science (like a CIF file), extract the lattice parameters (a, b, c, α, β, γ) and atomic data.
-        2. ALWAYS output this data in a clean Markdown Table. Never output raw data in a run-on sentence. Be highly detailed.
+        2. ALWAYS output data in a clean Markdown Table. Never output raw data in a run-on sentence. Be highly detailed.
         3. For coding queries (C++, RPA), provide flawless, deeply explained code blocks.
         4. Use proper newlines for all output to ensure formatting."""
             
         if vector_database is not None:
-            relevant_docs = vector_database.similarity_search(req.message, k=4)
+            # We now search the FAISS database using the Cloud Embedder
+            relevant_docs = vector_database.similarity_search(req.message, k=3)
             rag_context = "\n\n".join([doc.page_content for doc in relevant_docs])
-            system_prompt += f"\n\n--- DOCUMENT CONTEXT ---\n{rag_context}\nUse this context heavily."
+            system_prompt += f"\n\n--- DOCUMENT CONTEXT ---\n{rag_context}\nAnswer strictly using this context."
 
         if cif_direct_memory.strip():
             system_prompt += f"\n\n--- RAW CIF DATA ---\n{cif_direct_memory}\nAnalyze these structural parameters thoroughly."
