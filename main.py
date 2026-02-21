@@ -1,4 +1,5 @@
 import os
+import io
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -10,8 +11,6 @@ import PyPDF2
 from duckduckgo_search import DDGS
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-
-# NEW: We import the Cloud Inference API instead of the local PyTorch model
 from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
 from groq import Groq
 
@@ -25,7 +24,6 @@ vector_database = None
 cif_direct_memory = "" 
 
 def get_cloud_embeddings():
-    # This sends the text to Hugging Face's servers to be converted into vectors, saving our RAM!
     return HuggingFaceInferenceAPIEmbeddings(
         api_key=os.environ.get("HF_TOKEN"),
         model_name="sentence-transformers/all-MiniLM-L6-v2"
@@ -36,34 +34,47 @@ async def upload_file(file: UploadFile = File(...)):
     global vector_database, cif_direct_memory
     try:
         filename = file.filename.lower()
+        file_content = await file.read()
+        
+        # 1. Size Protection for Free Tier
+        if len(file_content) > 5 * 1024 * 1024:
+            return {"status": "error", "message": "File exceeds 5MB limit."}
+
         if filename.endswith(".pdf"):
             cif_direct_memory = ""
             try:
-                reader = PyPDF2.PdfReader(file.file)
+                # 2. Safe memory buffer reading
+                pdf_stream = io.BytesIO(file_content)
+                reader = PyPDF2.PdfReader(pdf_stream)
                 raw_text = "".join([page.extract_text() + "\n" for page in reader.pages if page.extract_text()])
-            except:
-                return {"status": "error", "message": "Corrupted PDF."}
+            except Exception as e:
+                return {"status": "error", "message": "Could not read PDF formatting."}
             
-            if not raw_text.strip(): return {"status": "error", "message": "Empty PDF."}
+            if not raw_text.strip(): 
+                return {"status": "error", "message": "PDF contains no readable text."}
+
+            # 3. Rate-Limit Protection: Truncate to the most relevant 15,000 characters
+            raw_text = raw_text[:15000]
 
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=100)
             chunks = text_splitter.split_text(raw_text)
             
-            # Use the cloud embedder to process the PDF chunks
-            cloud_embedder = get_cloud_embeddings()
-            vector_database = FAISS.from_texts(chunks, cloud_embedder)
-            
-            return {"status": "success", "message": "Document vectorized via Cloud Architecture."}
+            try:
+                cloud_embedder = get_cloud_embeddings()
+                vector_database = FAISS.from_texts(chunks, cloud_embedder)
+                return {"status": "success", "message": "Document vectorized securely."}
+            except Exception as hf_err:
+                return {"status": "error", "message": "HuggingFace API warming up. Wait 10s and retry."}
 
         elif filename.endswith(".cif") or filename.endswith(".txt"):
             vector_database = None
-            raw_data = await file.read()
-            cif_direct_memory = raw_data.decode("utf-8")[:10000] 
-            return {"status": "success", "message": "CIF structural data injected."}
+            cif_direct_memory = file_content.decode("utf-8", errors="ignore")[:10000] 
+            return {"status": "success", "message": "Structural data injected."}
         else:
-            return {"status": "error", "message": "Use .pdf or .cif"}
+            return {"status": "error", "message": "Invalid format. Use .pdf or .cif"}
+            
     except Exception as e:
-        return {"status": "error", "message": f"Pipeline Error: {str(e)}"}
+        return {"status": "error", "message": f"Server Error: {str(e)}"}
 
 class ChatRequest(BaseModel):
     message: str
@@ -84,19 +95,17 @@ async def chat_endpoint(req: ChatRequest):
     try:
         system_prompt = """You are NovaRAG, an elite Enterprise AI. 
         CRITICAL INSTRUCTIONS:
-        1. When asked about Material Science (like a CIF file), extract the lattice parameters (a, b, c, α, β, γ) and atomic data.
-        2. ALWAYS output data in a clean Markdown Table. Never output raw data in a run-on sentence. Be highly detailed.
-        3. For coding queries (C++, RPA), provide flawless, deeply explained code blocks.
-        4. Use proper newlines for all output to ensure formatting."""
+        1. Material Science (CIF): Extract lattice parameters (a, b, c, α, β, γ). ALWAYS output in a Markdown Table.
+        2. Software Engineering: Provide flawless, highly optimized code.
+        3. Never use run-on sentences. Use spacing, bullet points, and tables for readability."""
             
         if vector_database is not None:
-            # We now search the FAISS database using the Cloud Embedder
             relevant_docs = vector_database.similarity_search(req.message, k=3)
             rag_context = "\n\n".join([doc.page_content for doc in relevant_docs])
             system_prompt += f"\n\n--- DOCUMENT CONTEXT ---\n{rag_context}\nAnswer strictly using this context."
 
         if cif_direct_memory.strip():
-            system_prompt += f"\n\n--- RAW CIF DATA ---\n{cif_direct_memory}\nAnalyze these structural parameters thoroughly."
+            system_prompt += f"\n\n--- RAW CIF DATA ---\n{cif_direct_memory}\nAnalyze these structural parameters."
 
         if req.use_web:
             system_prompt += f"\n\n--- WEB DATA ---\n{search_web(req.message)}\nSynthesize this."
