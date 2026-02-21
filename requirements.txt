@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+python-multipart
+PyPDF2
+duckduckgo-search
+langchain
+sentence-transformers
+faiss-cpu
+langchain-community
+langchain-text-splitters
+groq

@@ -3,164 +3,190 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quokka Pro | Enterprise AI</title>
+    <title>NovaRAG Enterprise</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
 
     <script>
-        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { dark: '#212121', darker: '#171717', primary: '#3b82f6' } } } }
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { bgBase: '#0d0d0d', bgPanel: '#171717', bgInput: '#212121', accent: '#3b82f6' } } } }
     </script>
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #212121; color: #ececec; }
+        body { font-family: 'Inter', sans-serif; background-color: #0d0d0d; color: #ececec; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #424242; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
         
-        .markdown h1, .markdown h2, .markdown h3 { color: white; font-weight: 600; margin-top: 1rem; margin-bottom: 0.5rem; }
-        .markdown p { margin-bottom: 1rem; line-height: 1.6; }
-        .markdown ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1rem; }
-        .markdown code { background-color: #2f2f2f; padding: 0.2rem 0.4rem; border-radius: 0.375rem; font-family: monospace; color: #93c5fd; }
-        .markdown pre { background-color: #0d0d0d; padding: 1.25rem; border-radius: 0.75rem; overflow-x: auto; margin-bottom: 1.5rem; border: 1px solid #333; }
-        .markdown pre code { background-color: transparent; color: #e5e7eb; padding: 0; }
+        /* Premium Typography & Markdown */
+        .markdown { font-size: 0.95rem; leading-trim: both; text-edge: cap; }
+        .markdown h1, .markdown h2, .markdown h3 { color: #fff; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        .markdown p { margin-bottom: 1rem; line-height: 1.7; color: #d1d5db; }
+        .markdown ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1rem; color: #d1d5db; }
+        .markdown li { margin-bottom: 0.25rem; }
         
-        .glass-input { background: rgba(47, 47, 47, 0.7); backdrop-filter: blur(10px); border: 1px solid #424242; }
-        .glass-input:focus-within { border-color: #525252; background: rgba(47, 47, 47, 0.9); }
+        /* Enterprise Data Tables */
+        .markdown table { width: 100%; border-collapse: collapse; margin-top: 1rem; margin-bottom: 1rem; text-align: left; background: #171717; border-radius: 0.5rem; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); }
+        .markdown th, .markdown td { border-bottom: 1px solid #2a2a2a; padding: 0.875rem 1rem; }
+        .markdown th { background-color: #212121; font-weight: 600; color: #fff; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+        .markdown tr:last-child td { border-bottom: none; }
+        
+        /* Code Blocks */
+        .markdown pre { background-color: #000; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin-bottom: 1.5rem; border: 1px solid #333; }
+        .markdown code:not(pre code) { background-color: #2a2a2a; padding: 0.2rem 0.4rem; border-radius: 0.3rem; font-family: monospace; font-size: 0.85em; color: #fff; }
+        
+        /* Smooth Animations */
+        @keyframes slideIn { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .animate-in { animation: slideIn 0.3s ease-out forwards; }
+        .blinking-cursor { display: inline-block; width: 6px; height: 16px; background-color: #fff; animation: blink 1s step-end infinite; margin-left: 4px; vertical-align: text-bottom; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
-        @keyframes slideIn { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        .toast-enter { animation: slideIn 0.3s ease-out forwards; }
+        /* Claude-style Input Bar */
+        .premium-input-container { background-color: #212121; border: 1px solid #333; border-radius: 1.5rem; transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .premium-input-container:focus-within { border-color: #555; background-color: #262626; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
     </style>
 </head>
-<body class="flex h-screen overflow-hidden antialiased">
+<body class="flex h-screen overflow-hidden antialiased selection:bg-accent selection:text-white">
 
-    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2"></div>
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-3"></div>
 
-    <div class="w-64 bg-darker border-r border-[#333] flex flex-col z-20">
-        <div class="p-5 flex items-center gap-3 m-2 rounded-xl">
-            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
-                <i class="fa-solid fa-bolt text-sm"></i></div>
+    <div class="w-64 bg-bgPanel border-r border-[#222] flex flex-col z-20 transition-all">
+        <div class="p-6 flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-black font-bold shadow-md">
+                <i class="fa-solid fa-n text-sm"></i>
+            </div>
             <div>
-                <h1 class="font-semibold text-sm tracking-wide">Quokka Pro</h1>
-                <p class="text-[10px] text-gray-400 font-medium">AGENTIC EDITION</p>
+                <h1 class="font-semibold text-base tracking-wide text-white">NovaRAG</h1>
+                <p class="text-[10px] text-gray-500 font-medium tracking-widest uppercase">Enterprise</p>
             </div>
         </div>
 
-        <div class="px-4 py-2">
-            <button onclick="clearChat()" class="w-full flex items-center gap-3 bg-white text-black font-medium px-4 py-2.5 rounded-lg hover:bg-gray-200 transition-all text-sm shadow-sm">
-                <i class="fa-solid fa-plus"></i> New Chat
+        <div class="px-5 py-2">
+            <button onclick="clearChat()" class="w-full flex items-center gap-3 bg-[#2a2a2a] text-white font-medium px-4 py-2.5 rounded-xl hover:bg-[#333] transition-all text-sm border border-[#333] shadow-sm">
+                <i class="fa-solid fa-pen-to-square"></i> New Chat
             </button>
         </div>
 
-        <div class="flex-1 overflow-y-auto px-4 py-4 space-y-1">
-            <div class="flex items-center justify-between mb-3 px-2">
-                <p class="text-xs font-semibold text-gray-500">Local History</p>
-                <button onclick="clearHistory()" class="text-xs text-red-400 hover:text-red-300"><i class="fa-solid fa-trash"></i></button>
+        <div class="flex-1 overflow-y-auto px-5 py-6 space-y-3">
+            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Session Memory</p>
+            <div id="history-list" class="text-xs text-gray-400 flex items-center gap-2 px-2">
+                <i class="fa-solid fa-database text-gray-500"></i> Memory Active
             </div>
-            <div id="history-list"></div>
         </div>
 
-        <div class="p-4 border-t border-[#333] flex items-center justify-between">
-            <div class="flex items-center gap-3 hover:bg-[#2f2f2f] p-2 rounded-xl transition-colors flex-1 text-left cursor-pointer">
-                <img src="https://ui-avatars.com/api/?name=Admin&background=333&color=fff" class="w-8 h-8 rounded-full">
+        <div class="p-5 border-t border-[#222] flex items-center justify-between bg-[#111]">
+            <div class="flex items-center gap-3 flex-1 text-left">
+                <img src="https://ui-avatars.com/api/?name=Rana+Prathap&background=fff&color=000&rounded=true" class="w-8 h-8 rounded-full shadow-sm">
                 <div>
-                    <p class="text-sm font-medium text-white" id="username-display">Admin User</p>
-                    <p class="text-[11px] text-blue-400">Local Environment</p>
+                    <p class="text-sm font-medium text-white">Rana Prathap</p>
+                    <p class="text-[10px] text-gray-400">Admin</p>
                 </div>
             </div>
-            <button onclick="toggleSettings()" class="p-2 hover:bg-[#2f2f2f] rounded-lg text-gray-400 hover:text-white transition-colors">
+            <button onclick="toggleSettings()" class="p-2 hover:bg-[#222] rounded-lg text-gray-400 hover:text-white transition-all" title="Settings">
                 <i class="fa-solid fa-gear"></i>
             </button>
         </div>
     </div>
 
-    <div class="flex-1 flex flex-col bg-dark h-screen relative">
+    <div class="flex-1 flex flex-col bg-bgBase h-screen relative">
         
-        <div class="h-14 border-b border-[#333] flex items-center justify-between px-6 bg-dark/80 backdrop-blur-md flex-shrink-0">
-            <div class="flex items-center gap-2 text-blue-400 px-3 py-1.5 rounded-lg bg-blue-500/10">
-                <i class="fa-solid fa-microchip text-xs"></i>
-                <span class="font-medium text-sm">Auto-Routing Active</span>
+        <div class="h-14 border-b border-[#222] flex items-center justify-between px-6 bg-bgBase/90 backdrop-blur-md flex-shrink-0 z-10">
+            <div class="flex items-center gap-3">
+                <span class="text-gray-400 text-xs font-medium px-2.5 py-1 rounded bg-[#171717] border border-[#222]">
+                    <i class="fa-solid fa-microchip mr-1"></i> Llama-3 Engine
+                </span>
+                <span id="cif-badge" class="hidden text-emerald-400 text-xs font-medium px-2.5 py-1 rounded bg-emerald-500/10 border border-emerald-500/20 animate-in">
+                    <i class="fa-solid fa-cube mr-1"></i> Data Injected
+                </span>
             </div>
-            <button onclick="shareChat()" class="text-gray-400 hover:text-white transition-colors bg-[#2f2f2f] px-3 py-1.5 rounded-lg text-sm flex items-center gap-2">
-                <i class="fa-solid fa-share-nodes"></i> Share
+            
+            <button onclick="exportChat()" class="text-gray-400 hover:text-white transition-all text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-[#171717] flex items-center gap-2 border border-transparent hover:border-[#333]">
+                <i class="fa-solid fa-download"></i> Export .md
             </button>
         </div>
 
-        <div id="chat-box" class="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth">
-            <div id="welcome-screen" class="h-full flex flex-col items-center justify-center text-center max-w-2xl mx-auto opacity-80 pb-10">
-                <div class="w-16 h-16 rounded-2xl bg-[#2f2f2f] flex items-center justify-center mb-6 shadow-xl border border-[#424242]">
-                    <i class="fa-solid fa-bolt text-2xl text-white animate-pulse"></i>
+        <div id="chat-box" class="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth relative">
+            
+            <div id="welcome-screen" class="absolute inset-0 flex flex-col items-center justify-center text-center max-w-2xl mx-auto pb-20 transition-opacity duration-300">
+                <div class="w-16 h-16 rounded-2xl bg-[#171717] flex items-center justify-center mb-6 border border-[#333] shadow-lg">
+                    <i class="fa-solid fa-layer-group text-2xl text-white"></i>
                 </div>
-                <h2 class="text-2xl font-semibold mb-2 text-white">How can I help you today?</h2>
-                <p class="text-gray-400 text-sm mb-8">The AI will automatically analyze your question and adopt the correct expert persona.</p>
+                <h2 class="text-2xl font-semibold mb-3 text-white">Welcome to NovaRAG</h2>
+                <p class="text-gray-400 text-sm mb-10 max-w-md">Upload a document to augment the AI's memory, or ask a technical question directly.</p>
                 
-                <div class="grid grid-cols-2 gap-3 w-full">
-                    <button onclick="document.getElementById('chat-input').value='Optimize this C++ code for formatting decimals:'; document.getElementById('chat-input').focus();" class="bg-[#2f2f2f] hover:bg-[#424242] p-4 rounded-xl text-left border border-[#333] transition-colors">
-                        <p class="text-sm text-gray-200 font-medium">Code Analysis</p>
-                        <p class="text-xs text-gray-500 mt-1">Review C++ syntax</p>
+                <div class="grid grid-cols-2 gap-4 w-full">
+                    <button onclick="document.getElementById('chat-input').value='Extract the lattice parameters from the uploaded CIF file and generate a data table:'; document.getElementById('chat-input').focus();" class="bg-[#171717] hover:bg-[#212121] p-5 rounded-2xl text-left border border-[#333] transition-all group">
+                        <i class="fa-solid fa-atom text-gray-400 mb-3 text-lg group-hover:text-accent transition-colors"></i>
+                        <p class="text-sm text-gray-100 font-medium mb-1">Material Science</p>
+                        <p class="text-xs text-gray-500">Analyze structural data</p>
                     </button>
-                    <button onclick="document.getElementById('chat-input').value='Explain the Bravais-Morris indices in Perovskites.'; document.getElementById('chat-input').focus();" class="bg-[#2f2f2f] hover:bg-[#424242] p-4 rounded-xl text-left border border-[#333] transition-colors">
-                        <p class="text-sm text-gray-200 font-medium">Material Science</p>
-                        <p class="text-xs text-gray-500 mt-1">Deep dive concepts</p>
+                    
+                    <button onclick="document.getElementById('chat-input').value='Write an Automation Anywhere script to extract data from a web table:'; document.getElementById('chat-input').focus();" class="bg-[#171717] hover:bg-[#212121] p-5 rounded-2xl text-left border border-[#333] transition-all group">
+                        <i class="fa-solid fa-robot text-gray-400 mb-3 text-lg group-hover:text-accent transition-colors"></i>
+                        <p class="text-sm text-gray-100 font-medium mb-1">RPA Automation</p>
+                        <p class="text-xs text-gray-500">Generate logic workflows</p>
                     </button>
                 </div>
             </div>
+
+            <div id="chat-content" class="relative z-10 w-full flex flex-col pb-6 max-w-4xl mx-auto"></div>
         </div>
 
-        <div class="p-4 md:p-6 bg-dark border-t border-[#333] flex-shrink-0 relative">
+        <div class="px-4 pb-6 pt-2 bg-gradient-to-t from-[#0d0d0d] via-[#0d0d0d] to-transparent flex-shrink-0 relative">
             <div class="max-w-3xl mx-auto relative">
-                <div id="status-bar" class="absolute -top-8 left-4 text-xs font-medium tracking-wide text-blue-400 hidden flex items-center gap-2">
-                    <i class="fa-solid fa-circle-notch fa-spin"></i> <span id="status-text">Generating...</span>
+                
+                <div id="status-bar" class="absolute -top-8 left-4 text-[11px] font-medium text-gray-400 hidden flex items-center gap-2">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i> <span id="status-text">Thinking...</span>
                 </div>
 
-                <div class="glass-input rounded-2xl flex flex-col px-4 py-3 shadow-2xl transition-all">
-                    <textarea id="chat-input" rows="1" placeholder="Ask Quokka Pro anything..." class="w-full bg-transparent text-white placeholder-gray-500 focus:outline-none resize-none text-base py-2" oninput="this.style.height = '';this.style.height = this.scrollHeight + 'px'"></textarea>
+                <div class="premium-input-container flex items-end p-2 px-3 gap-2">
                     
-                    <div class="flex items-center justify-between mt-2 pt-2 border-t border-[#424242]">
-                        <div class="flex items-center gap-1">
-                            <label class="cursor-pointer text-gray-400 hover:text-white hover:bg-[#424242] p-2 rounded-lg transition-colors relative group">
-                                <i class="fa-solid fa-paperclip text-lg"></i>
-                                <input type="file" id="pdf-upload" accept=".pdf" class="hidden">
-                                <span class="absolute -top-8 left-0 bg-black text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity">Attach PDF</span>
-                            </label>
+                    <div class="flex items-center gap-1 pb-1">
+                        <label class="cursor-pointer text-gray-400 hover:text-white hover:bg-[#333] w-9 h-9 rounded-full flex items-center justify-center transition-all" title="Upload PDF/CIF">
+                            <i class="fa-solid fa-paperclip text-[15px]"></i>
+                            <input type="file" id="file-upload" accept=".pdf,.cif,.txt" class="hidden">
+                        </label>
 
-                            <button id="web-btn" onclick="toggleWebSearch()" class="text-gray-400 hover:text-white hover:bg-[#424242] p-2 rounded-lg transition-colors relative group">
-                                <i class="fa-solid fa-globe text-lg"></i>
-                                <span class="absolute -top-8 left-0 bg-black text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity">Web Search</span>
-                            </button>
-                            <span id="upload-status" class="text-xs font-medium ml-2 hidden"></span>
-                        </div>
-                        <button onclick="sendMessage()" class="bg-white text-black hover:bg-gray-200 p-2 rounded-xl transition-all w-10 h-10 flex items-center justify-center">
-                            <i class="fa-solid fa-arrow-up"></i>
+                        <button id="web-btn" onclick="toggleWebSearch()" class="text-gray-400 hover:text-white hover:bg-[#333] w-9 h-9 rounded-full flex items-center justify-center transition-all" title="Toggle Web Search">
+                            <i class="fa-solid fa-globe text-[15px]"></i>
                         </button>
                     </div>
+
+                    <textarea id="chat-input" rows="1" placeholder="Message NovaRAG..." class="flex-1 bg-transparent border-none focus:outline-none text-white placeholder-gray-500 resize-none text-[15px] py-2.5 leading-relaxed" oninput="this.style.height = '';this.style.height = Math.min(this.scrollHeight, 200) + 'px'"></textarea>
+                    
+                    <div class="pb-1 pl-1">
+                        <button onclick="sendMessage()" class="bg-white text-black hover:bg-gray-200 w-9 h-9 rounded-full flex items-center justify-center transition-transform hover:scale-105 shadow-md">
+                            <i class="fa-solid fa-arrow-up text-[15px]"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center mt-2 px-2">
+                    <span id="upload-status" class="text-[10px] font-medium hidden text-emerald-400 tracking-wide"></span>
+                    <p class="text-[10px] text-gray-600 tracking-wide flex-1 text-center">NovaRAG can make mistakes. Verify important code.</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="settings-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center transition-opacity">
-        <div class="bg-darker border border-[#333] w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-            <div class="p-5 border-b border-[#333] flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-white">Engine Settings</h3>
-                <button onclick="toggleSettings()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+    <div id="settings-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center transition-opacity">
+        <div class="bg-bgPanel border border-[#333] w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden transform scale-100 transition-transform">
+            <div class="p-5 border-b border-[#222] flex items-center justify-between">
+                <h3 class="text-base font-semibold text-white">System Configuration</h3>
+                <button onclick="toggleSettings()" class="text-gray-500 hover:text-white transition-colors"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="p-5 space-y-6">
+            <div class="p-6 space-y-6">
                 <div>
-                    <label class="flex justify-between text-sm font-medium text-gray-300 mb-2">
+                    <label class="flex justify-between text-sm font-medium text-gray-300 mb-3">
                         <span>Temperature (Accuracy)</span>
-                        <span id="temp-display" class="text-blue-400 font-bold">0.4</span>
+                        <span id="temp-display" class="text-white bg-[#222] px-2 py-0.5 rounded text-xs">0.2</span>
                     </label>
-                    <input type="range" id="setting-temp" min="0.1" max="1.0" step="0.1" value="0.4" class="w-full accent-blue-500" oninput="document.getElementById('temp-display').innerText = this.value">
-                    <p class="text-xs text-gray-500 mt-2">Lower = More precise/factual. Higher = More creative.</p>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">Username</label>
-                    <input type="text" id="setting-username" value="Admin User" class="w-full bg-[#2f2f2f] border border-[#424242] text-white rounded-lg p-3 text-sm focus:outline-none focus:border-blue-500">
+                    <input type="range" id="setting-temp" min="0.1" max="1.0" step="0.1" value="0.2" class="w-full accent-white h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer" oninput="document.getElementById('temp-display').innerText = this.value">
                 </div>
             </div>
-            <div class="p-4 bg-[#2f2f2f] border-t border-[#333] flex justify-end">
-                <button onclick="saveSettings()" class="bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-500 transition-colors shadow-lg">Save Configuration</button>
+            <div class="p-4 bg-[#111] flex justify-end">
+                <button onclick="saveSettings()" class="bg-white text-black px-5 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition-all">Save Changes</button>
             </div>
         </div>
     </div>
@@ -169,118 +195,130 @@
         // 🔴🔴🔴 PASTE YOUR COLAB API URL HERE (No trailing slash) 🔴🔴🔴
         const API_URL = "https://dissatisfiedly-cutcha-venice.ngrok-free.dev"; 
 
+        marked.setOptions({
+            highlight: function(code, lang) {
+                const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+                return hljs.highlight(code, { language }).value;
+            }
+        });
+
         let chatHistory = [];
         let useWebSearch = false;
-        let activeTemp = 0.4; // Default to a more accurate temperature
+        let activeTemp = 0.2;
 
         const chatBox = document.getElementById('chat-box');
+        const chatContent = document.getElementById('chat-content');
         const chatInput = document.getElementById('chat-input');
+        const welcomeScreen = document.getElementById('welcome-screen');
         
-        // --- LocalStorage History System ---
         function loadHistory() {
-            const saved = localStorage.getItem('quokka_history');
+            const saved = localStorage.getItem('novarag_history');
             if (saved) {
                 chatHistory = JSON.parse(saved);
                 if(chatHistory.length > 0) {
-                    chatBox.innerHTML = '';
+                    welcomeScreen.classList.add('hidden');
                     chatHistory.forEach(msg => addMessage(msg.content, msg.role === 'user' ? 'user' : 'bot', true));
                 }
             }
-            updateHistorySidebar();
         }
 
-        function updateHistorySidebar() {
-            const list = document.getElementById('history-list');
-            list.innerHTML = '';
-            if(chatHistory.length > 0) {
-                const title = chatHistory[0].content.substring(0, 25) + "...";
-                list.innerHTML = `<button class="w-full text-left text-sm text-gray-300 hover:bg-[#2f2f2f] hover:text-white py-2 px-3 rounded-lg truncate transition-colors"><i class="fa-regular fa-message mr-2 text-gray-500"></i> ${title}</button>`;
-            }
-        }
-
-        function saveLocalData() {
-            localStorage.setItem('quokka_history', JSON.stringify(chatHistory));
-            updateHistorySidebar();
-        }
-
-        function clearHistory() {
-            localStorage.removeItem('quokka_history');
-            clearChat();
-        }
-
-        // Run on load
+        function saveLocalData() { localStorage.setItem('novarag_history', JSON.stringify(chatHistory)); }
         window.onload = () => { loadHistory(); }
 
-        // --- UX Features ---
         function showToast(message, type='success') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
-            const color = type === 'success' ? 'border-green-500 text-green-400' : type === 'warning' ? 'border-yellow-500 text-yellow-400' : 'border-blue-500 text-blue-400';
-            const icon = type === 'success' ? 'fa-check-circle' : type === 'warning' ? 'fa-triangle-exclamation' : 'fa-circle-info';
+            const color = type === 'success' ? 'border-emerald-500' : type === 'warning' ? 'border-yellow-500' : 'border-red-500';
             
-            toast.className = `bg-darker border-l-4 ${color} shadow-2xl p-4 rounded-lg flex items-center gap-3 toast-enter min-w-[250px]`;
-            toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span class="text-sm font-medium text-white">${message}</span>`;
+            toast.className = `bg-[#171717] border-l-2 ${color} shadow-xl p-3.5 rounded-lg flex items-center gap-3 animate-in min-w-[250px]`;
+            toast.innerHTML = `<span class="text-sm font-medium text-gray-100">${message}</span>`;
             
             container.appendChild(toast);
-            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 3000);
         }
 
-        function shareChat() {
-            if(chatHistory.length === 0) { showToast('No chat to share yet!', 'warning'); return; }
-            let exportText = "Quokka Pro - Chat Transcript\n\n";
-            chatHistory.forEach(msg => { exportText += `${msg.role === 'user' ? 'YOU:' : 'QUOKKA:'}\n${msg.content}\n\n`; });
-            navigator.clipboard.writeText(exportText);
-            showToast('Chat copied to clipboard!', 'success');
-        }
-
-        function toggleSettings() { document.getElementById('settings-modal').classList.toggle('hidden'); }
-
-        function saveSettings() {
-            activeTemp = parseFloat(document.getElementById('setting-temp').value);
-            document.getElementById('username-display').innerText = document.getElementById('setting-username').value;
-            toggleSettings();
-            showToast(`Engine updated (Temp: ${activeTemp})`, 'success');
+        function exportChat() {
+            if(chatHistory.length === 0) { showToast('No data to export.', 'warning'); return; }
+            let exportText = "# NovaRAG Chat Transcript\n\n---\n\n";
+            chatHistory.forEach(msg => { exportText += `### ${msg.role === 'user' ? 'User' : 'NovaRAG'}\n${msg.content}\n\n---\n\n`; });
+            const blob = new Blob([exportText], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = `NovaRAG_Export.md`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
         }
 
         function clearChat() {
-            chatHistory = [];
-            chatBox.innerHTML = document.getElementById('welcome-screen').outerHTML;
-            saveLocalData();
-            showToast('Started a new conversation.', 'info');
+            chatHistory = []; chatContent.innerHTML = ''; localStorage.removeItem('novarag_history');
+            welcomeScreen.classList.remove('hidden'); document.getElementById('cif-badge').classList.add('hidden');
+            document.getElementById('upload-status').classList.add('hidden');
         }
+
+        function toggleSettings() { document.getElementById('settings-modal').classList.toggle('hidden'); }
+        function saveSettings() { activeTemp = parseFloat(document.getElementById('setting-temp').value); toggleSettings(); showToast(`Settings optimized.`, 'success'); }
 
         function toggleWebSearch() {
             useWebSearch = !useWebSearch;
             const btn = document.getElementById('web-btn');
             if(useWebSearch) {
-                btn.classList.replace('text-gray-400', 'text-blue-400');
-                btn.classList.add('bg-blue-500/10');
-                showToast('Live Web Search Enabled', 'success');
+                btn.classList.add('text-emerald-400', 'bg-emerald-500/10');
+                btn.classList.remove('text-gray-400', 'hover:text-white', 'hover:bg-[#333]');
             } else {
-                btn.classList.replace('text-blue-400', 'text-gray-400');
-                btn.classList.remove('bg-blue-500/10');
+                btn.classList.remove('text-emerald-400', 'bg-emerald-500/10');
+                btn.classList.add('text-gray-400', 'hover:text-white', 'hover:bg-[#333]');
             }
         }
 
         chatInput.addEventListener('keydown', (e) => { 
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+            if (e.key === 'Enter' && !e.shiftKey) { 
+                e.preventDefault(); 
+                sendMessage(); 
+            } 
         });
 
-        // --- Core Functions ---
+        document.getElementById('file-upload').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const uploadStatus = document.getElementById('upload-status');
+            uploadStatus.classList.remove('hidden');
+            uploadStatus.classList.replace('text-emerald-400', 'text-blue-400');
+            uploadStatus.innerText = "Indexing " + file.name + "...";
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            try {
+                const res = await fetch(`${API_URL}/upload`, { method: 'POST', body: formData, headers: { 'ngrok-skip-browser-warning': 'true' } });
+                const data = await res.json();
+                
+                if(data.status === "success") {
+                    uploadStatus.classList.replace('text-blue-400', 'text-emerald-400');
+                    uploadStatus.innerText = `✓ File active`;
+                    showToast("Document successfully analyzed.", 'success');
+                    if(file.name.endsWith('.cif')) {
+                        document.getElementById('cif-badge').classList.remove('hidden');
+                        document.getElementById('cif-badge').classList.add('inline-flex');
+                    }
+                } else throw new Error(data.message);
+            } catch (err) {
+                uploadStatus.classList.replace('text-blue-400', 'text-red-400');
+                uploadStatus.innerText = "Upload failed.";
+                showToast(`Error: ${err.message || 'Network disconnected'}`, 'warning');
+            }
+            e.target.value = '';
+        });
+
         async function sendMessage() {
             const text = chatInput.value.trim();
             if (!text) return;
 
-            if(chatHistory.length === 0 && document.getElementById('welcome-screen')) chatBox.innerHTML = '';
-
+            welcomeScreen.classList.add('hidden');
             addMessage(text, 'user');
-            chatInput.value = '';
-            chatInput.style.height = 'auto';
+            chatInput.value = ''; chatInput.style.height = 'auto';
             
             document.getElementById('status-bar').classList.remove('hidden');
-            document.getElementById('status-text').innerText = useWebSearch ? "Searching the web..." : "Agent thinking...";
 
-            const botBubble = addMessage('', 'bot');
+            const botBubble = addMessage('<span class="blinking-cursor"></span>', 'bot');
             let botText = "";
 
             try {
@@ -296,19 +334,30 @@
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
-                    botText += decoder.decode(value);
-                    botBubble.innerHTML = marked.parse(botText);
                     
-                    botBubble.querySelectorAll('pre code').forEach(block => { block.style.color = '#93c5fd'; });
-                    chatBox.scrollTop = chatBox.scrollHeight;
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n\n');
+                    
+                    for (let line of lines) {
+                        if (line.startsWith('data: ')) {
+                            let payload = line.replace('data: ', '');
+                            if (payload === '[DONE]') break;
+                            
+                            payload = payload.replace(/<br>/g, "\n");
+                            botText += payload;
+                            botBubble.innerHTML = marked.parse(botText) + '<span class="blinking-cursor"></span>';
+                            chatBox.scrollTop = chatBox.scrollHeight;
+                        }
+                    }
                 }
 
+                botBubble.innerHTML = marked.parse(botText);
                 chatHistory.push({ role: "user", content: text });
                 chatHistory.push({ role: "assistant", content: botText });
-                saveLocalData(); // Save to browser storage!
+                saveLocalData();
 
             } catch (err) {
-                botBubble.innerHTML = `<span class="text-red-400"><i class="fa-solid fa-triangle-exclamation"></i> API Error. Check Colab terminal.</span>`;
+                botBubble.innerHTML = `<span class="text-red-400"><i class="fa-solid fa-triangle-exclamation"></i> Server disconnected. Ensure Colab is running.</span>`;
             }
 
             document.getElementById('status-bar').classList.add('hidden');
@@ -316,21 +365,27 @@
 
         function addMessage(text, role, isHistoryLoad = false) {
             const wrapper = document.createElement('div');
-            wrapper.className = `flex gap-4 mb-6 w-full max-w-4xl mx-auto ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+            // Claude-style layout: Avatar on the left for bot, clean text alignment
+            wrapper.className = `flex gap-4 mb-6 w-full animate-in ${role === 'user' ? 'justify-end' : 'justify-start'}`;
             
+            let avatarHtml = '';
             if (role === 'bot') {
-                const avatar = document.createElement('div');
-                avatar.className = "w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-md mt-1";
-                avatar.innerHTML = `<i class="fa-solid fa-bolt text-xs"></i>`;
-                wrapper.appendChild(avatar);
+                avatarHtml = `<div class="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-black font-bold flex-shrink-0 shadow-sm"><i class="fa-solid fa-n text-[10px]"></i></div>`;
             }
 
             const bubble = document.createElement('div');
-            bubble.className = `max-w-[85%] ${role === 'user' ? 'bg-[#2f2f2f] text-white px-5 py-3 rounded-2xl rounded-tr-sm shadow-md' : 'bg-transparent text-gray-200 markdown'}`;
-            bubble.innerHTML = isHistoryLoad && role === 'bot' ? marked.parse(text) : text; 
+            if (role === 'user') {
+                bubble.className = `max-w-[75%] bg-[#2a2a2a] text-gray-100 px-5 py-3.5 rounded-2xl rounded-tr-sm text-[15px] shadow-sm`;
+                bubble.innerHTML = text;
+            } else {
+                bubble.className = `max-w-[85%] bg-transparent text-gray-200 markdown pt-1`;
+                bubble.innerHTML = isHistoryLoad ? marked.parse(text) : text;
+            }
 
+            if (role === 'bot') wrapper.innerHTML = avatarHtml;
             wrapper.appendChild(bubble);
-            chatBox.appendChild(wrapper); 
+            
+            chatContent.appendChild(wrapper); 
             chatBox.scrollTop = chatBox.scrollHeight;
             return bubble;
         }
