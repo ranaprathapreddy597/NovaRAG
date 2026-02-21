@@ -103,7 +103,7 @@ async def chat_endpoint(req: ChatRequest):
         messages = [{"role": "system", "content": system_prompt}] + req.history[-6:] + [{"role": "user", "content": req.message}]
         
         stream = client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             messages=messages,
             temperature=req.temperature,
             max_tokens=1500,
