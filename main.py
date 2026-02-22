@@ -1,7 +1,6 @@
 import os
 import io
 import gc
-import uuid
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -15,11 +14,20 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
 from groq import Groq
 
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
+# 1. CRITICAL RENDER FIX: The Health Check Endpoint
+@app.get("/")
+def health_check():
+    return {"status": "Online", "system": "NovaRAG Enterprise Server by Rana Prathap Reddy"}
+
+# 2. ISOLATED MEMORY: Multi-Tenant Architecture
 active_sessions: Dict[str, dict] = {}
+
+# 3. LAZY LOADING: Prevents build-time crashes
+def get_groq_client():
+    return Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 def get_cloud_embeddings():
     return HuggingFaceInferenceAPIEmbeddings(
@@ -36,10 +44,12 @@ async def upload_file(file: UploadFile = File(...), session_id: str = Form(...))
         filename = file.filename.lower()
         file_content = await file.read()
         
+        # Free Tier memory protection
         if len(file_content) > 3 * 1024 * 1024:
             del file_content
-            return {"status": "error", "message": "File exceeds 3MB free tier limit."}
+            return {"status": "error", "message": "File exceeds 3MB limit."}
 
+        # Initialize user workspace
         if session_id not in active_sessions:
             active_sessions[session_id] = {"vector_db": None, "cif_data": ""}
 
@@ -54,7 +64,7 @@ async def upload_file(file: UploadFile = File(...), session_id: str = Form(...))
             except Exception:
                 return {"status": "error", "message": "Unreadable PDF formatting."}
             
-            # CRITICAL FIX: Limit to 5000 chars to avoid HuggingFace Rate/Payload Limits
+            # Rate limit protection for Hugging Face
             raw_text = raw_text[:5000] 
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=400, chunk_overlap=50)
             chunks = text_splitter.split_text(raw_text)
@@ -64,16 +74,16 @@ async def upload_file(file: UploadFile = File(...), session_id: str = Form(...))
             try:
                 cloud_embedder = get_cloud_embeddings()
                 active_sessions[session_id]["vector_db"] = FAISS.from_texts(chunks, cloud_embedder)
-                return {"status": "success", "message": "Document vectorized successfully."}
+                return {"status": "success", "message": "Document vectorized securely."}
             except Exception as e:
-                return {"status": "error", "message": f"HuggingFace API limit hit. Wait 10s. ({str(e)[:30]})"}
+                return {"status": "error", "message": "AI Engine warming up. Please wait 10s and retry."}
 
         elif filename.endswith(".cif") or filename.endswith(".txt"):
             active_sessions[session_id]["vector_db"] = None 
             active_sessions[session_id]["cif_data"] = file_content.decode("utf-8", errors="ignore")[:10000] 
             del file_content
             gc.collect()
-            return {"status": "success", "message": "Structural CIF isolated securely."}
+            return {"status": "success", "message": "Structural data isolated securely."}
         else:
             return {"status": "error", "message": "Unsupported file type."}
             
@@ -101,11 +111,13 @@ async def chat_endpoint(req: ChatRequest):
         v_db = user_data["vector_db"]
         cif_mem = user_data["cif_data"]
 
-        system_prompt = """You are NovaRAG, an elite Enterprise AI created by Rana Prathap Reddy.
+        # STRICT IDENTITY & CAPABILITIES
+        system_prompt = """You are NovaRAG, an elite Enterprise AI engineered entirely by Rana Prathap Reddy.
+        
         CRITICAL GUARDRAILS:
-        1. SAFETY: Never generate harmful, illegal, or malicious code. Refuse politely if asked.
-        2. ISOLATION: You assist ONE user. Only answer based on context provided.
-        3. FORMATTING: Use Markdown Tables for data. Use highly readable formatting.
+        1. SAFETY: Never generate harmful, illegal, or malicious code. Protect user privacy.
+        2. ISOLATION: You are assisting ONE specific user in a secure session. Answer ONLY based on provided context.
+        3. FORMATTING: Use Markdown Tables for data. Use concise bullet points. No massive paragraphs.
         4. DOMAIN: Material Science (CIF analysis) and high-performance Software Engineering."""
             
         if v_db is not None:
@@ -121,6 +133,7 @@ async def chat_endpoint(req: ChatRequest):
 
         messages = [{"role": "system", "content": system_prompt}] + req.history[-6:] + [{"role": "user", "content": req.message}]
         
+        client = get_groq_client()
         stream = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=messages,
