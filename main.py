@@ -146,7 +146,8 @@ async def chat_endpoint(req: ChatRequest):
             for chunk in stream:
                 token = chunk.choices[0].delta.content
                 if token:
-                    yield f"data: {token.replace('\n', '<br>')}\n\n"
+                    safe_token = token.replace("\n", "<br>")
+                    yield f"data: {safe_token}\n\n"
                     await asyncio.sleep(0.001) 
             yield "data: [DONE]\n\n"
                 
