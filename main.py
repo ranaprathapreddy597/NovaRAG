@@ -15,14 +15,10 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
 from groq import Groq
 
-# --- ENTERPRISE CONFIGURATION ---
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-# MULTI-TENANT MEMORY: Isolates user data by Session ID
-# In a massive scale app, this would be a Pinecone/Supabase database. 
-# For Render's free tier, we use an isolated memory dictionary.
 active_sessions: Dict[str, dict] = {}
 
 def get_cloud_embeddings():
@@ -31,7 +27,6 @@ def get_cloud_embeddings():
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
-# --- SECURE UPLOAD ENDPOINT ---
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...), session_id: str = Form(...)):
     if not session_id:
@@ -41,47 +36,44 @@ async def upload_file(file: UploadFile = File(...), session_id: str = Form(...))
         filename = file.filename.lower()
         file_content = await file.read()
         
-        # Free Tier Memory Protection
         if len(file_content) > 3 * 1024 * 1024:
             del file_content
-            return {"status": "error", "message": "File exceeds 3MB limit."}
+            return {"status": "error", "message": "File exceeds 3MB free tier limit."}
 
-        # Initialize session memory if it doesn't exist
         if session_id not in active_sessions:
             active_sessions[session_id] = {"vector_db": None, "cif_data": ""}
 
         if filename.endswith(".pdf"):
-            active_sessions[session_id]["cif_data"] = "" # Clear old CIF
+            active_sessions[session_id]["cif_data"] = "" 
             try:
                 pdf_stream = io.BytesIO(file_content)
                 reader = PyPDF2.PdfReader(pdf_stream)
                 raw_text = "".join([page.extract_text() + "\n" for page in reader.pages if page.extract_text()])
-                
                 del file_content, pdf_stream, reader
                 gc.collect() 
             except Exception:
                 return {"status": "error", "message": "Unreadable PDF formatting."}
             
-            raw_text = raw_text[:12000] # FAISS memory cap
-            text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+            # CRITICAL FIX: Limit to 5000 chars to avoid HuggingFace Rate/Payload Limits
+            raw_text = raw_text[:5000] 
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=400, chunk_overlap=50)
             chunks = text_splitter.split_text(raw_text)
             del raw_text
             gc.collect()
 
             try:
                 cloud_embedder = get_cloud_embeddings()
-                # Store FAISS db ONLY for this specific user's session
                 active_sessions[session_id]["vector_db"] = FAISS.from_texts(chunks, cloud_embedder)
-                return {"status": "success", "message": "Document securely vectorized & isolated."}
-            except Exception:
-                return {"status": "error", "message": "AI Engine warming up. Retry in 10s."}
+                return {"status": "success", "message": "Document vectorized successfully."}
+            except Exception as e:
+                return {"status": "error", "message": f"HuggingFace API limit hit. Wait 10s. ({str(e)[:30]})"}
 
         elif filename.endswith(".cif") or filename.endswith(".txt"):
-            active_sessions[session_id]["vector_db"] = None # Clear old PDF
+            active_sessions[session_id]["vector_db"] = None 
             active_sessions[session_id]["cif_data"] = file_content.decode("utf-8", errors="ignore")[:10000] 
             del file_content
             gc.collect()
-            return {"status": "success", "message": "Structural data isolated securely."}
+            return {"status": "success", "message": "Structural CIF isolated securely."}
         else:
             return {"status": "error", "message": "Unsupported file type."}
             
@@ -102,23 +94,19 @@ def search_web(query):
     except:
         return "Search network error."
 
-# --- SECURE CHAT ENDPOINT ---
 @app.post("/chat")
 async def chat_endpoint(req: ChatRequest):
     try:
-        # User Session Retrieval
         user_data = active_sessions.get(req.session_id, {"vector_db": None, "cif_data": ""})
         v_db = user_data["vector_db"]
         cif_mem = user_data["cif_data"]
 
-        # ENTERPRISE GUARDRAILS & IDENTITY
         system_prompt = """You are NovaRAG, an elite Enterprise AI created by Rana Prathap Reddy.
-        
         CRITICAL GUARDRAILS:
         1. SAFETY: Never generate harmful, illegal, or malicious code. Refuse politely if asked.
-        2. ISOLATION: You are currently assisting ONE user. Only answer based on the context provided.
-        3. FORMATTING: Use Markdown Tables for data. Use highly readable formatting. No run-on sentences.
-        4. DOMAIN: You specialize in Material Science (CIF analysis) and high-performance Software Engineering."""
+        2. ISOLATION: You assist ONE user. Only answer based on context provided.
+        3. FORMATTING: Use Markdown Tables for data. Use highly readable formatting.
+        4. DOMAIN: Material Science (CIF analysis) and high-performance Software Engineering."""
             
         if v_db is not None:
             relevant_docs = v_db.similarity_search(req.message, k=3)
@@ -145,8 +133,7 @@ async def chat_endpoint(req: ChatRequest):
             for chunk in stream:
                 token = chunk.choices[0].delta.content
                 if token:
-                    safe_token = token.replace("\n", "<br>")
-                    yield f"data: {safe_token}\n\n"
+                    yield f"data: {token.replace('\n', '<br>')}\n\n"
                     await asyncio.sleep(0.001) 
             yield "data: [DONE]\n\n"
                 
