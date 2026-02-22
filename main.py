@@ -1,11 +1,11 @@
 import os
 import io
-import gc # Garbage Collector for memory management
-from fastapi import FastAPI, UploadFile, File
+import gc
+import uuid
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-import uvicorn
 import asyncio
 from typing import List, Dict
 import PyPDF2
@@ -15,14 +15,15 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
 from groq import Groq
 
-# Initialize Cloud Clients
+# --- ENTERPRISE CONFIGURATION ---
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
-
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-vector_database = None
-cif_direct_memory = "" 
+# MULTI-TENANT MEMORY: Isolates user data by Session ID
+# In a massive scale app, this would be a Pinecone/Supabase database. 
+# For Render's free tier, we use an isolated memory dictionary.
+active_sessions: Dict[str, dict] = {}
 
 def get_cloud_embeddings():
     return HuggingFaceInferenceAPIEmbeddings(
@@ -30,64 +31,65 @@ def get_cloud_embeddings():
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
+# --- SECURE UPLOAD ENDPOINT ---
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
-    global vector_database, cif_direct_memory
+async def upload_file(file: UploadFile = File(...), session_id: str = Form(...)):
+    if not session_id:
+        raise HTTPException(status_code=400, detail="Secure Session ID required.")
+        
     try:
         filename = file.filename.lower()
         file_content = await file.read()
         
-        # Stricter memory limit for Free Tier (Max 2MB)
-        if len(file_content) > 2 * 1024 * 1024:
-            del file_content # Free RAM immediately
-            return {"status": "error", "message": "File too large for free tier. Max 2MB."}
+        # Free Tier Memory Protection
+        if len(file_content) > 3 * 1024 * 1024:
+            del file_content
+            return {"status": "error", "message": "File exceeds 3MB limit."}
+
+        # Initialize session memory if it doesn't exist
+        if session_id not in active_sessions:
+            active_sessions[session_id] = {"vector_db": None, "cif_data": ""}
 
         if filename.endswith(".pdf"):
-            cif_direct_memory = ""
+            active_sessions[session_id]["cif_data"] = "" # Clear old CIF
             try:
                 pdf_stream = io.BytesIO(file_content)
                 reader = PyPDF2.PdfReader(pdf_stream)
                 raw_text = "".join([page.extract_text() + "\n" for page in reader.pages if page.extract_text()])
                 
-                # Delete massive objects from memory to prevent Render OOM Crash
-                del file_content
-                del pdf_stream
-                del reader
+                del file_content, pdf_stream, reader
                 gc.collect() 
-
-            except Exception as e:
-                return {"status": "error", "message": "Could not read PDF formatting."}
+            except Exception:
+                return {"status": "error", "message": "Unreadable PDF formatting."}
             
-            if not raw_text.strip(): 
-                return {"status": "error", "message": "PDF contains no readable text."}
-
-            raw_text = raw_text[:10000] # Reduced to 10k chars to save FAISS memory
+            raw_text = raw_text[:12000] # FAISS memory cap
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
             chunks = text_splitter.split_text(raw_text)
-            
             del raw_text
             gc.collect()
 
             try:
                 cloud_embedder = get_cloud_embeddings()
-                vector_database = FAISS.from_texts(chunks, cloud_embedder)
-                return {"status": "success", "message": "Document vectorized safely."}
-            except Exception as hf_err:
-                return {"status": "error", "message": "HuggingFace API warming up. Wait 15s and retry."}
+                # Store FAISS db ONLY for this specific user's session
+                active_sessions[session_id]["vector_db"] = FAISS.from_texts(chunks, cloud_embedder)
+                return {"status": "success", "message": "Document securely vectorized & isolated."}
+            except Exception:
+                return {"status": "error", "message": "AI Engine warming up. Retry in 10s."}
 
         elif filename.endswith(".cif") or filename.endswith(".txt"):
-            vector_database = None
-            cif_direct_memory = file_content.decode("utf-8", errors="ignore")[:10000] 
+            active_sessions[session_id]["vector_db"] = None # Clear old PDF
+            active_sessions[session_id]["cif_data"] = file_content.decode("utf-8", errors="ignore")[:10000] 
             del file_content
             gc.collect()
-            return {"status": "success", "message": "Structural data injected."}
+            return {"status": "success", "message": "Structural data isolated securely."}
         else:
-            return {"status": "error", "message": "Invalid format."}
+            return {"status": "error", "message": "Unsupported file type."}
             
     except Exception as e:
-        return {"status": "error", "message": f"Server RAM Error: {str(e)}"}
+        return {"status": "error", "message": f"Processing Error: {str(e)}"}
 
 class ChatRequest(BaseModel):
+    session_id: str
     message: str
     history: List[Dict[str, str]]
     use_web: bool
@@ -100,27 +102,31 @@ def search_web(query):
     except:
         return "Search network error."
 
+# --- SECURE CHAT ENDPOINT ---
 @app.post("/chat")
 async def chat_endpoint(req: ChatRequest):
-    global vector_database, cif_direct_memory
     try:
-        # IDENTITY INJECTION: Giving the AI its true origin story
-        system_prompt = """You are NovaRAG, an elite Enterprise AI. 
-        CRITICAL IDENTITY INSTRUCTIONS:
-        You were engineered and developed entirely by Rana Prathap Reddy, an expert Computer Science and AI Engineer based in Hyderabad. If asked about your creator, you must proudly state that Rana Prathap Reddy built you using a hybrid cloud architecture.
-        
-        CRITICAL FORMATTING INSTRUCTIONS:
-        1. Material Science (CIF): Extract lattice parameters (a, b, c, α, β, γ). ALWAYS output in a Markdown Table.
-        2. Software Engineering: Provide flawless, highly optimized code.
-        3. Never use run-on sentences. Use spacing, bullet points, and tables for readability."""
-            
-        if vector_database is not None:
-            relevant_docs = vector_database.similarity_search(req.message, k=3)
-            rag_context = "\n\n".join([doc.page_content for doc in relevant_docs])
-            system_prompt += f"\n\n--- DOCUMENT CONTEXT ---\n{rag_context}\nAnswer strictly using this context."
+        # User Session Retrieval
+        user_data = active_sessions.get(req.session_id, {"vector_db": None, "cif_data": ""})
+        v_db = user_data["vector_db"]
+        cif_mem = user_data["cif_data"]
 
-        if cif_direct_memory.strip():
-            system_prompt += f"\n\n--- RAW CIF DATA ---\n{cif_direct_memory}\nAnalyze these structural parameters."
+        # ENTERPRISE GUARDRAILS & IDENTITY
+        system_prompt = """You are NovaRAG, an elite Enterprise AI created by Rana Prathap Reddy.
+        
+        CRITICAL GUARDRAILS:
+        1. SAFETY: Never generate harmful, illegal, or malicious code. Refuse politely if asked.
+        2. ISOLATION: You are currently assisting ONE user. Only answer based on the context provided.
+        3. FORMATTING: Use Markdown Tables for data. Use highly readable formatting. No run-on sentences.
+        4. DOMAIN: You specialize in Material Science (CIF analysis) and high-performance Software Engineering."""
+            
+        if v_db is not None:
+            relevant_docs = v_db.similarity_search(req.message, k=3)
+            rag_context = "\n\n".join([doc.page_content for doc in relevant_docs])
+            system_prompt += f"\n\n--- USER DOCUMENT CONTEXT ---\n{rag_context}\nAnswer strictly using this context."
+
+        if cif_mem.strip():
+            system_prompt += f"\n\n--- USER CIF DATA ---\n{cif_mem}\nAnalyze these structural parameters."
 
         if req.use_web:
             system_prompt += f"\n\n--- WEB DATA ---\n{search_web(req.message)}\nSynthesize this."
@@ -147,6 +153,6 @@ async def chat_endpoint(req: ChatRequest):
         return StreamingResponse(response_generator(), media_type="text/event-stream")
         
     except Exception as e:
-        safe_error = f"**[Backend Error]** {str(e)}".replace("\n", "<br>")
+        safe_error = f"**[System Error]** {str(e)}".replace("\n", "<br>")
         async def error_generator(): yield f"data: {safe_error}\n\n"
         return StreamingResponse(error_generator(), media_type="text/event-stream")

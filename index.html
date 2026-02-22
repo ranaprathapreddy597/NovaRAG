@@ -12,130 +12,125 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
 
     <script>
-        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { bgBase: '#0d0d0d', bgPanel: '#171717', bgInput: '#212121', accent: '#3b82f6' } } } }
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { bgBase: '#09090b', bgPanel: '#18181b', bgInput: '#27272a', accent: '#ffffff' } } } }
     </script>
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #0d0d0d; color: #e5e5e5; }
-        ::-webkit-scrollbar { width: 6px; }
+        body { font-family: 'Inter', sans-serif; background-color: #09090b; color: #e4e4e7; }
+        ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
         
-        /* Premium Typography & Markdown */
-        .markdown { font-size: 0.95rem; leading-trim: both; text-edge: cap; }
+        .markdown { font-size: 0.95rem; line-height: 1.7; }
         .markdown h1, .markdown h2, .markdown h3 { color: #fff; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.75rem; }
-        .markdown p { margin-bottom: 1rem; line-height: 1.75; color: #d4d4d4; }
-        .markdown ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1.25rem; color: #d4d4d4; }
-        .markdown li { margin-bottom: 0.35rem; }
+        .markdown p { margin-bottom: 1rem; color: #d4d4d8; }
+        .markdown ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1.25rem; color: #d4d4d8; }
         
-        /* Enterprise Data Tables */
-        .markdown .table-wrapper { overflow-x: auto; margin-bottom: 1.5rem; border-radius: 0.5rem; border: 1px solid #333; }
-        .markdown table { width: 100%; border-collapse: collapse; text-align: left; background: #171717; }
-        .markdown th, .markdown td { border-bottom: 1px solid #2a2a2a; padding: 0.875rem 1rem; }
-        .markdown th { background-color: #212121; font-weight: 600; color: #fff; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
-        .markdown tr:last-child td { border-bottom: none; }
+        .markdown .table-wrapper { overflow-x: auto; margin-bottom: 1.5rem; border-radius: 0.5rem; border: 1px solid #27272a; }
+        .markdown table { width: 100%; border-collapse: collapse; text-align: left; background: #18181b; }
+        .markdown th, .markdown td { border-bottom: 1px solid #27272a; padding: 0.875rem 1rem; }
+        .markdown th { background-color: #27272a; font-weight: 500; color: #fff; font-size: 0.8rem; }
         
-        /* Code Blocks */
-        .markdown pre { background-color: #000; padding: 1.25rem; border-radius: 0.5rem; overflow-x: auto; margin-bottom: 1.5rem; border: 1px solid #333; }
-        .markdown code:not(pre code) { background-color: #2a2a2a; padding: 0.2rem 0.4rem; border-radius: 0.3rem; font-family: monospace; font-size: 0.85em; color: #fff; }
+        .markdown pre { background-color: #000; padding: 1.25rem; border-radius: 0.5rem; overflow-x: auto; margin-bottom: 1.5rem; border: 1px solid #27272a; }
+        .markdown code:not(pre code) { background-color: #27272a; padding: 0.2rem 0.4rem; border-radius: 0.3rem; font-family: monospace; font-size: 0.85em; color: #fff; }
         
-        /* Smooth Animations */
         @keyframes slideIn { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .animate-in { animation: slideIn 0.3s ease-out forwards; }
         .blinking-cursor { display: inline-block; width: 6px; height: 16px; background-color: #fff; animation: blink 1s step-end infinite; margin-left: 4px; vertical-align: text-bottom; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
-        /* Claude-style Input Bar */
-        .premium-input-container { background-color: #212121; border: 1px solid #333; border-radius: 1.5rem; transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-        .premium-input-container:focus-within { border-color: #555; background-color: #262626; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+        .premium-input-container { background-color: #27272a; border: 1px solid #3f3f46; border-radius: 1.5rem; transition: all 0.2s ease; }
+        .premium-input-container:focus-within { border-color: #71717a; background-color: #27272a; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
     </style>
 </head>
-<body class="flex h-screen overflow-hidden antialiased selection:bg-accent selection:text-white">
+<body class="flex h-screen overflow-hidden antialiased">
 
     <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-3"></div>
 
-    <div class="w-64 bg-bgPanel border-r border-[#222] flex flex-col z-20 hidden md:flex">
-        <div class="p-6 flex items-center gap-3">
+    <div class="w-64 bg-bgPanel border-r border-[#27272a] flex flex-col z-20 hidden md:flex">
+        <div class="p-5 flex items-center gap-3">
             <div class="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-black font-bold shadow-md">
                 <i class="fa-solid fa-n text-sm"></i>
             </div>
             <div>
                 <h1 class="font-semibold text-base tracking-wide text-white">NovaRAG</h1>
-                <p class="text-[10px] text-gray-500 font-medium tracking-widest uppercase">Enterprise</p>
+                <p class="text-[10px] text-gray-500 font-medium tracking-widest uppercase">Enterprise SaaS</p>
             </div>
         </div>
 
-        <div class="px-5 py-2">
-            <button onclick="clearChat()" class="w-full flex items-center gap-3 bg-[#2a2a2a] text-white font-medium px-4 py-2.5 rounded-xl hover:bg-[#333] transition-all text-sm border border-[#333] shadow-sm">
-                <i class="fa-solid fa-pen-to-square"></i> New Chat
+        <div class="px-4 py-2">
+            <button onclick="clearChat()" class="w-full flex items-center gap-3 bg-[#27272a] text-white font-medium px-4 py-2.5 rounded-xl hover:bg-[#3f3f46] transition-all text-sm border border-[#3f3f46] shadow-sm">
+                <i class="fa-solid fa-pen-to-square"></i> New Workspace
             </button>
         </div>
 
-        <div class="flex-1 overflow-y-auto px-5 py-6 space-y-3">
-            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Session Memory</p>
-            <div id="history-list" class="text-xs text-gray-400 flex items-center gap-2 px-2">
-                <i class="fa-solid fa-database text-gray-500"></i> Memory Active
+        <div class="flex-1 overflow-y-auto px-4 py-6 space-y-3">
+            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 px-1">Recent Activity</p>
+            <div id="history-list" class="text-xs text-gray-400 flex items-center gap-2 px-1">
+                <i class="fa-solid fa-cloud"></i> Local Session Active
             </div>
         </div>
 
-        <div class="p-5 border-t border-[#222] flex items-center justify-between bg-[#111]">
-            <div class="flex items-center gap-3 flex-1 text-left">
-                <img src="https://ui-avatars.com/api/?name=Rana+Prathap&background=fff&color=000&rounded=true" class="w-8 h-8 rounded-full shadow-sm">
-                <div>
-                    <p class="text-sm font-medium text-white">Rana Prathap</p>
-                    <p class="text-[10px] text-gray-400">Admin</p>
+        <div class="p-4 border-t border-[#27272a] bg-[#18181b]">
+            <button onclick="toggleSettings()" class="w-full flex items-center justify-between hover:bg-[#27272a] p-2 rounded-lg transition-all">
+                <div class="flex items-center gap-3 text-left">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shadow-inner">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-white">Guest User</p>
+                        <p class="text-[10px] text-gray-400">Upgrade to Sync</p>
+                    </div>
                 </div>
-            </div>
-            <button onclick="toggleSettings()" class="p-2 hover:bg-[#222] rounded-lg text-gray-400 hover:text-white transition-all">
-                <i class="fa-solid fa-gear"></i>
+                <i class="fa-solid fa-ellipsis-vertical text-gray-500 px-2"></i>
             </button>
         </div>
     </div>
 
     <div class="flex-1 flex flex-col bg-bgBase h-screen relative">
         
-        <div class="h-14 border-b border-[#222] flex items-center justify-between px-6 bg-bgBase/90 backdrop-blur-md flex-shrink-0 z-10">
+        <div class="h-14 border-b border-[#27272a] flex items-center justify-between px-6 bg-bgBase/90 backdrop-blur-md flex-shrink-0 z-10">
             <div class="flex items-center gap-3">
-                <span class="text-gray-400 text-xs font-medium px-2.5 py-1 rounded bg-[#171717] border border-[#222]">
-                    <i class="fa-solid fa-microchip mr-1"></i> Llama-3.1 Engine
+                <span class="text-gray-400 text-xs font-medium px-2.5 py-1 rounded bg-[#18181b] border border-[#27272a]">
+                    <i class="fa-solid fa-shield-halved mr-1"></i> Isolated Tenant Session
                 </span>
                 <span id="cif-badge" class="hidden text-emerald-400 text-xs font-medium px-2.5 py-1 rounded bg-emerald-500/10 border border-emerald-500/20 animate-in">
-                    <i class="fa-solid fa-cube mr-1"></i> Data Injected
+                    <i class="fa-solid fa-lock mr-1"></i> Private Data Secured
                 </span>
             </div>
             
-            <button onclick="exportChat()" class="text-gray-400 hover:text-white transition-all text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-[#171717] flex items-center gap-2 border border-transparent hover:border-[#333]">
-                <i class="fa-solid fa-download"></i> Export .md
+            <button onclick="exportChat()" class="text-gray-400 hover:text-white transition-all text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-[#27272a] flex items-center gap-2">
+                <i class="fa-solid fa-download"></i> Export Data
             </button>
         </div>
 
         <div id="chat-box" class="flex-1 overflow-y-auto p-4 md:p-8 relative">
             
             <div id="welcome-screen" class="absolute inset-0 flex flex-col items-center justify-center text-center max-w-2xl mx-auto pb-20 transition-opacity duration-300">
-                <div class="w-16 h-16 rounded-2xl bg-[#171717] flex items-center justify-center mb-6 border border-[#333] shadow-lg">
-                    <i class="fa-solid fa-layer-group text-2xl text-white"></i>
+                <div class="w-16 h-16 rounded-2xl bg-[#18181b] flex items-center justify-center mb-6 border border-[#27272a] shadow-lg">
+                    <i class="fa-solid fa-bolt text-2xl text-white"></i>
                 </div>
-                <h2 class="text-2xl font-semibold mb-3 text-white">Welcome to NovaRAG</h2>
-                <p class="text-gray-400 text-sm mb-10 max-w-md">Upload a document to augment the AI's memory, or ask a technical question directly.</p>
+                <h2 class="text-2xl font-semibold mb-3 text-white">What shall we build today?</h2>
+                <p class="text-gray-400 text-sm mb-10 max-w-md">Upload confidential documents to your secure workspace, or generate production-ready code.</p>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full px-4">
-                    <button onclick="document.getElementById('chat-input').value='Extract the lattice parameters from the uploaded CIF file and generate a data table:'; document.getElementById('chat-input').focus();" class="bg-[#171717] hover:bg-[#212121] p-5 rounded-2xl text-left border border-[#333] transition-all group">
-                        <i class="fa-solid fa-atom text-gray-400 mb-3 text-lg group-hover:text-white transition-colors"></i>
-                        <p class="text-sm text-gray-100 font-medium mb-1">Material Science</p>
-                        <p class="text-xs text-gray-500">Analyze structural data</p>
+                    <button onclick="document.getElementById('chat-input').value='Analyze this material structure and output a parameter table:'; document.getElementById('chat-input').focus();" class="bg-[#18181b] hover:bg-[#27272a] p-5 rounded-2xl text-left border border-[#27272a] transition-all group">
+                        <i class="fa-solid fa-atom text-gray-500 mb-3 text-lg group-hover:text-white transition-colors"></i>
+                        <p class="text-sm text-gray-200 font-medium mb-1">Materials & CIF</p>
+                        <p class="text-xs text-gray-500">Secure structural analysis</p>
                     </button>
                     
-                    <button onclick="document.getElementById('chat-input').value='Write an Automation Anywhere script to extract data from a web table:'; document.getElementById('chat-input').focus();" class="bg-[#171717] hover:bg-[#212121] p-5 rounded-2xl text-left border border-[#333] transition-all group">
-                        <i class="fa-solid fa-robot text-gray-400 mb-3 text-lg group-hover:text-white transition-colors"></i>
-                        <p class="text-sm text-gray-100 font-medium mb-1">RPA Automation</p>
-                        <p class="text-xs text-gray-500">Generate logic workflows</p>
+                    <button onclick="document.getElementById('chat-input').value='Architect a secure Python FastAPI backend with WebSockets:'; document.getElementById('chat-input').focus();" class="bg-[#18181b] hover:bg-[#27272a] p-5 rounded-2xl text-left border border-[#27272a] transition-all group">
+                        <i class="fa-solid fa-code text-gray-500 mb-3 text-lg group-hover:text-white transition-colors"></i>
+                        <p class="text-sm text-gray-200 font-medium mb-1">Software Architecture</p>
+                        <p class="text-xs text-gray-500">Enterprise code generation</p>
                     </button>
                 </div>
             </div>
 
-            <div id="chat-content" class="relative z-10 w-full flex flex-col pb-6 max-w-4xl mx-auto"></div>
+            <div id="chat-content" class="relative z-10 w-full flex flex-col pb-6 max-w-3xl mx-auto"></div>
         </div>
 
-        <div class="px-4 pb-6 pt-2 bg-gradient-to-t from-[#0d0d0d] via-[#0d0d0d] to-transparent flex-shrink-0 relative">
+        <div class="px-4 pb-6 pt-2 bg-gradient-to-t from-[#09090b] via-[#09090b] to-transparent flex-shrink-0 relative">
             <div class="max-w-3xl mx-auto relative">
                 
                 <div id="status-bar" class="absolute -top-8 left-4 text-[11px] font-medium text-gray-400 hidden flex items-center gap-2">
@@ -144,12 +139,12 @@
 
                 <div class="premium-input-container flex items-end p-2 px-3 gap-2">
                     <div class="flex items-center gap-1 pb-1">
-                        <label class="cursor-pointer text-gray-400 hover:text-white hover:bg-[#333] w-9 h-9 rounded-full flex items-center justify-center transition-all">
+                        <label class="cursor-pointer text-gray-400 hover:text-white hover:bg-[#3f3f46] w-9 h-9 rounded-full flex items-center justify-center transition-all">
                             <i class="fa-solid fa-paperclip text-[15px]"></i>
                             <input type="file" id="file-upload" accept=".pdf,.cif,.txt" class="hidden">
                         </label>
 
-                        <button id="web-btn" onclick="toggleWebSearch()" class="text-gray-400 hover:text-white hover:bg-[#333] w-9 h-9 rounded-full flex items-center justify-center transition-all">
+                        <button id="web-btn" onclick="toggleWebSearch()" class="text-gray-400 hover:text-white hover:bg-[#3f3f46] w-9 h-9 rounded-full flex items-center justify-center transition-all">
                             <i class="fa-solid fa-globe text-[15px]"></i>
                         </button>
                     </div>
@@ -164,38 +159,62 @@
                 </div>
                 <div class="flex justify-between items-center mt-2 px-2">
                     <span id="upload-status" class="text-[10px] font-medium hidden text-emerald-400 tracking-wide"></span>
-                    <p class="text-[10px] text-gray-600 tracking-wide flex-1 text-center">NovaRAG is running on cloud infrastructure. Initial queries may take a few seconds.</p>
+                    <p class="text-[10px] text-gray-500 tracking-wide flex-1 text-center">NovaRAG is an AI and can make mistakes. Verify critical code and data.</p>
                 </div>
             </div>
         </div>
     </div>
 
     <div id="settings-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center transition-opacity">
-        <div class="bg-bgPanel border border-[#333] w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden transform scale-100 transition-transform">
-            <div class="p-5 border-b border-[#222] flex items-center justify-between">
-                <h3 class="text-base font-semibold text-white">System Configuration</h3>
+        <div class="bg-[#18181b] border border-[#27272a] w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div class="p-5 border-b border-[#27272a] flex items-center justify-between bg-[#18181b]">
+                <h3 class="text-base font-semibold text-white">Workspace Settings</h3>
                 <button onclick="toggleSettings()" class="text-gray-500 hover:text-white transition-colors"><i class="fa-solid fa-xmark"></i></button>
             </div>
+            
+            <div class="flex border-b border-[#27272a]">
+                <button class="flex-1 py-3 text-sm font-medium text-white border-b-2 border-white">General</button>
+                <button class="flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-300">Account</button>
+            </div>
+
             <div class="p-6 space-y-6">
+                <div class="bg-[#09090b] p-4 rounded-xl border border-[#27272a] flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-white">Cloud Sync</p>
+                        <p class="text-[10px] text-gray-400 mt-0.5">Save chats to your Google account</p>
+                    </div>
+                    <button class="bg-white text-black px-4 py-2 rounded-lg text-xs font-semibold hover:bg-gray-200 transition-all flex items-center gap-2">
+                        <i class="fa-brands fa-google"></i> Connect
+                    </button>
+                </div>
+
                 <div>
                     <label class="flex justify-between text-sm font-medium text-gray-300 mb-3">
-                        <span>Temperature (Accuracy)</span>
-                        <span id="temp-display" class="text-white bg-[#222] px-2 py-0.5 rounded text-xs">0.2</span>
+                        <span>Model Creativity (Temperature)</span>
+                        <span id="temp-display" class="text-white bg-[#27272a] px-2 py-0.5 rounded text-xs">0.2</span>
                     </label>
-                    <input type="range" id="setting-temp" min="0.1" max="1.0" step="0.1" value="0.2" class="w-full accent-white h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer" oninput="document.getElementById('temp-display').innerText = this.value">
+                    <input type="range" id="setting-temp" min="0.1" max="1.0" step="0.1" value="0.2" class="w-full accent-white h-1 bg-[#27272a] rounded-lg appearance-none cursor-pointer" oninput="document.getElementById('temp-display').innerText = this.value">
+                    <p class="text-[10px] text-gray-500 mt-2">Lower values produce strict factual output (best for CIF and Code).</p>
                 </div>
             </div>
-            <div class="p-4 bg-[#111] flex justify-end">
-                <button onclick="saveSettings()" class="bg-white text-black px-5 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition-all">Save Changes</button>
+            <div class="p-4 bg-[#09090b] flex justify-between items-center border-t border-[#27272a]">
+                <button onclick="clearChat()" class="text-red-400 text-xs font-medium hover:text-red-300">Delete Local Data</button>
+                <button onclick="saveSettings()" class="bg-white text-black px-5 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition-all">Save Preferences</button>
             </div>
         </div>
     </div>
 
     <script>
-        // 🔴🔴🔴 PASTE YOUR RENDER URL HERE (No trailing slash) 🔴🔴🔴
+        // 🔴🔴🔴 RENDER URL 🔴🔴🔴
         const API_URL = "https://novarag-api.onrender.com"; 
 
-        // Fix for Markdown Tables wrapping cleanly
+        // Generate a persistent anonymous UUID for Data Isolation
+        let sessionId = localStorage.getItem('novarag_session_id');
+        if (!sessionId) {
+            sessionId = crypto.randomUUID();
+            localStorage.setItem('novarag_session_id', sessionId);
+        }
+
         const renderer = new marked.Renderer();
         renderer.table = function(header, body) {
             return `<div class="table-wrapper"><table><thead>${header}</thead><tbody>${body}</tbody></table></div>`;
@@ -237,8 +256,8 @@
             const toast = document.createElement('div');
             const color = type === 'success' ? 'border-emerald-500' : type === 'warning' ? 'border-yellow-500' : 'border-red-500';
             
-            toast.className = `bg-[#171717] border-l-2 ${color} shadow-xl p-3.5 rounded-lg flex items-center gap-3 animate-in min-w-[250px]`;
-            toast.innerHTML = `<span class="text-sm font-medium text-gray-100">${message}</span>`;
+            toast.className = `bg-[#18181b] border-l-2 ${color} shadow-2xl p-3.5 rounded-lg flex items-center gap-3 animate-in min-w-[250px]`;
+            toast.innerHTML = `<span class="text-sm font-medium text-gray-200">${message}</span>`;
             
             container.appendChild(toast);
             setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 3500);
@@ -246,7 +265,7 @@
 
         function exportChat() {
             if(chatHistory.length === 0) { showToast('No data to export.', 'warning'); return; }
-            let exportText = "# NovaRAG Chat Transcript\n\n---\n\n";
+            let exportText = "# NovaRAG Secure Transcript\n\n---\n\n";
             chatHistory.forEach(msg => { exportText += `### ${msg.role === 'user' ? 'User' : 'NovaRAG'}\n${msg.content}\n\n---\n\n`; });
             const blob = new Blob([exportText], { type: 'text/markdown' });
             const url = URL.createObjectURL(blob);
@@ -255,23 +274,30 @@
         }
 
         function clearChat() {
-            chatHistory = []; chatContent.innerHTML = ''; localStorage.removeItem('novarag_history');
+            chatHistory = []; chatContent.innerHTML = ''; 
+            localStorage.removeItem('novarag_history');
+            // Generate a fresh session ID to clear backend memory isolation
+            sessionId = crypto.randomUUID();
+            localStorage.setItem('novarag_session_id', sessionId);
+            
             welcomeScreen.classList.remove('hidden'); document.getElementById('cif-badge').classList.add('hidden');
             document.getElementById('upload-status').classList.add('hidden');
+            showToast("Workspace wiped securely.", "success");
+            document.getElementById('settings-modal').classList.add('hidden');
         }
 
         function toggleSettings() { document.getElementById('settings-modal').classList.toggle('hidden'); }
-        function saveSettings() { activeTemp = parseFloat(document.getElementById('setting-temp').value); toggleSettings(); showToast(`Settings optimized.`, 'success'); }
+        function saveSettings() { activeTemp = parseFloat(document.getElementById('setting-temp').value); toggleSettings(); showToast(`Preferences saved.`, 'success'); }
 
         function toggleWebSearch() {
             useWebSearch = !useWebSearch;
             const btn = document.getElementById('web-btn');
             if(useWebSearch) {
-                btn.classList.add('text-emerald-400', 'bg-emerald-500/10');
-                btn.classList.remove('text-gray-400', 'hover:text-white', 'hover:bg-[#333]');
+                btn.classList.add('text-white', 'bg-[#3f3f46]');
+                btn.classList.remove('text-gray-400', 'hover:text-white', 'hover:bg-[#3f3f46]');
             } else {
-                btn.classList.remove('text-emerald-400', 'bg-emerald-500/10');
-                btn.classList.add('text-gray-400', 'hover:text-white', 'hover:bg-[#333]');
+                btn.classList.remove('text-white', 'bg-[#3f3f46]');
+                btn.classList.add('text-gray-400', 'hover:text-white', 'hover:bg-[#3f3f46]');
             }
         }
 
@@ -286,21 +312,20 @@
             const file = e.target.files[0];
             if (!file) return;
 
-            // Free Tier Protection: Prevent > 5MB uploads
-            if (file.size > 5 * 1024 * 1024) {
-                showToast("File is too large. Max 5MB allowed.", "warning");
-                e.target.value = '';
-                return;
+            if (file.size > 3 * 1024 * 1024) {
+                showToast("File is too large. Max 3MB allowed.", "warning");
+                e.target.value = ''; return;
             }
 
             const uploadStatus = document.getElementById('upload-status');
             uploadStatus.classList.remove('hidden');
             uploadStatus.classList.replace('text-emerald-400', 'text-blue-400');
             uploadStatus.classList.replace('text-red-400', 'text-blue-400');
-            uploadStatus.innerText = "Indexing " + file.name + "...";
+            uploadStatus.innerText = "Encrypting & Indexing...";
 
             const formData = new FormData();
             formData.append("file", file);
+            formData.append("session_id", sessionId); // Passing the secure isolation ID
 
             try {
                 const res = await fetch(`${API_URL}/upload`, { method: 'POST', body: formData });
@@ -308,9 +333,9 @@
                 
                 if(data.status === "success") {
                     uploadStatus.classList.replace('text-blue-400', 'text-emerald-400');
-                    uploadStatus.innerText = `✓ File active`;
-                    showToast("Document successfully analyzed.", 'success');
-                    if(file.name.endsWith('.cif')) {
+                    uploadStatus.innerText = `✓ File secured in session`;
+                    showToast(data.message, 'success');
+                    if(file.name.endsWith('.cif') || file.name.endsWith('.pdf')) {
                         document.getElementById('cif-badge').classList.remove('hidden');
                         document.getElementById('cif-badge').classList.add('inline-flex');
                     }
@@ -340,7 +365,13 @@
                 const response = await fetch(`${API_URL}/chat`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: text, history: chatHistory, use_web: useWebSearch, temperature: activeTemp })
+                    body: JSON.stringify({ 
+                        session_id: sessionId, // Ensures backend knows who is asking
+                        message: text, 
+                        history: chatHistory, 
+                        use_web: useWebSearch, 
+                        temperature: activeTemp 
+                    })
                 });
 
                 if (!response.ok) throw new Error("Server error. Render may be asleep.");
@@ -364,7 +395,6 @@
                             botText += payload;
                             botBubble.innerHTML = marked.parse(botText) + '<span class="blinking-cursor"></span>';
                             
-                            // Perfect scrolling mechanism
                             chatBox.scrollTop = chatBox.scrollHeight;
                         }
                     }
@@ -393,10 +423,10 @@
 
             const bubble = document.createElement('div');
             if (role === 'user') {
-                bubble.className = `max-w-[75%] bg-[#2a2a2a] text-gray-100 px-5 py-3.5 rounded-2xl rounded-tr-sm text-[15px] shadow-sm`;
+                bubble.className = `max-w-[75%] bg-[#27272a] text-gray-100 px-5 py-3.5 rounded-2xl rounded-tr-sm text-[15px] shadow-sm`;
                 bubble.innerHTML = text;
             } else {
-                bubble.className = `max-w-[85%] bg-transparent text-[#e5e5e5] markdown pt-1 overflow-hidden`;
+                bubble.className = `max-w-[85%] bg-transparent text-[#e4e4e7] markdown pt-1 overflow-hidden`;
                 bubble.innerHTML = isHistoryLoad ? marked.parse(text) : text;
             }
 
