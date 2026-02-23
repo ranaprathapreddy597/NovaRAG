@@ -59,9 +59,9 @@
         </div>
 
         <div class="flex-1 overflow-y-auto px-4 py-6 space-y-3">
-            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 px-1">Recent Activity</p>
+            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 px-1">Database Sync</p>
             <div id="history-list" class="text-xs text-gray-400 flex items-center gap-2 px-1">
-                <i class="fa-solid fa-cloud"></i> Local Session Active
+                <i class="fa-solid fa-cloud-arrow-up" id="sync-icon"></i> <span id="sync-text">Local Storage</span>
             </div>
         </div>
 
@@ -110,10 +110,10 @@
                         <p class="text-xs text-gray-500">Secure structural analysis</p>
                     </button>
                     
-                    <button onclick="document.getElementById('chat-input').value='Architect a secure Python FastAPI backend with WebSockets:'; document.getElementById('chat-input').focus();" class="bg-[#18181b] hover:bg-[#27272a] p-5 rounded-2xl text-left border border-[#27272a] transition-all group">
-                        <i class="fa-solid fa-code text-gray-500 mb-3 text-lg group-hover:text-white transition-colors"></i>
-                        <p class="text-sm text-gray-200 font-medium mb-1">Software Architecture</p>
-                        <p class="text-xs text-gray-500">Enterprise code generation</p>
+                    <button onclick="document.getElementById('chat-input').value='Write an Automation Anywhere script to extract data from a web table:'; document.getElementById('chat-input').focus();" class="bg-[#18181b] hover:bg-[#27272a] p-5 rounded-2xl text-left border border-[#27272a] transition-all group">
+                        <i class="fa-solid fa-robot text-gray-500 mb-3 text-lg group-hover:text-white transition-colors"></i>
+                        <p class="text-sm text-gray-200 font-medium mb-1">RPA Automation</p>
+                        <p class="text-xs text-gray-500">Enterprise workflows</p>
                     </button>
                 </div>
             </div>
@@ -169,11 +169,10 @@
                         <span id="temp-display" class="text-white bg-[#27272a] px-2 py-0.5 rounded text-xs">0.2</span>
                     </label>
                     <input type="range" id="setting-temp" min="0.1" max="1.0" step="0.1" value="0.2" class="w-full accent-white h-1 bg-[#27272a] rounded-lg appearance-none cursor-pointer" oninput="document.getElementById('temp-display').innerText = this.value">
-                    <p class="text-[10px] text-gray-500 mt-2">Lower values produce strict factual output.</p>
                 </div>
                 <div class="pt-4 border-t border-[#27272a]">
                     <p class="text-sm font-medium text-white mb-2">Danger Zone</p>
-                    <button onclick="deleteLocalData()" class="w-full bg-red-500/10 text-red-500 border border-red-500/20 py-2 rounded-lg text-sm font-medium hover:bg-red-500/20 transition-all">Wipe Local Workspace Data</button>
+                    <button onclick="clearChat()" class="w-full bg-red-500/10 text-red-500 border border-red-500/20 py-2 rounded-lg text-sm font-medium hover:bg-red-500/20 transition-all">Wipe Workspace Data</button>
                 </div>
             </div>
 
@@ -181,7 +180,7 @@
                 <div class="bg-[#09090b] p-4 rounded-xl border border-[#27272a] flex flex-col gap-4">
                     <div>
                         <p class="text-sm font-medium text-white">Google Auth Sync</p>
-                        <p class="text-[10px] text-gray-400 mt-0.5">Connect your Google Account to sync chats across devices.</p>
+                        <p class="text-[10px] text-gray-400 mt-0.5">Connect your Google Account to sync chats across devices using Firestore.</p>
                     </div>
                     <button id="google-login-btn" class="w-full bg-white text-black px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-200 transition-all flex items-center justify-center gap-2">
                         <i class="fa-brands fa-google"></i> Sign in with Google
@@ -198,61 +197,75 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        // 🔴🔴🔴 PASTE YOUR OLD PROJECT FIREBASE KEYS HERE 🔴🔴🔴
-        // Import the functions you need from the SDKs you need
-//import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
+        // 🔴🔴🔴 PASTE YOUR FIREBASE KEYS HERE 🔴🔴🔴
         const firebaseConfig = {
-        apiKey: "AIzaSyCZdGzTqUqwKO0FD99LpsHEMXrXoY1hDc4",
-        authDomain: "novarag-69b41.firebaseapp.com",
-        projectId: "novarag-69b41",
-        storageBucket: "novarag-69b41.firebasestorage.app",
-        messagingSenderId: "131156901542",
-        appId: "1:131156901542:web:446bb5b7d8b3bf768bfe67"
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
 
-// Initialize Firebase
-//const app = initializeApp(firebaseConfig);
-
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
+        const db = getFirestore(app);
         const provider = new GoogleAuthProvider();
 
         const loginBtn = document.getElementById('google-login-btn');
-        const userName = document.getElementById('user-name');
-        const userEmail = document.getElementById('user-email');
-        const userAvatar = document.getElementById('user-avatar');
+        window.currentUserUID = null;
 
-        // Handle Login Clicks
         loginBtn.addEventListener('click', () => {
             if (auth.currentUser) {
-                signOut(auth).then(() => showToast("Signed out securely.", "success"));
+                signOut(auth).then(() => {
+                    window.currentUserUID = null;
+                    document.getElementById('sync-text').innerText = "Local Storage";
+                    document.getElementById('sync-icon').className = "fa-solid fa-cloud-arrow-up text-gray-400";
+                    showToast("Signed out securely.", "success");
+                });
             } else {
-                signInWithPopup(auth, provider)
-                    .then((result) => { showToast(`Welcome, ${result.user.displayName}`, "success"); })
-                    .catch((error) => { showToast(`Auth Error: ${error.message}`, "warning"); });
+                signInWithPopup(auth, provider).catch(error => showToast(`Auth Error: ${error.message}`, "warning"));
             }
         });
 
-        // Listen for Auth State Changes
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             if (user) {
-                userName.innerText = user.displayName;
-                userEmail.innerText = user.email;
-                userAvatar.src = user.photoURL;
+                window.currentUserUID = user.uid;
+                document.getElementById('user-name').innerText = user.displayName;
+                document.getElementById('user-email').innerText = "Cloud Sync Active";
+                document.getElementById('user-avatar').src = user.photoURL;
                 loginBtn.innerHTML = '<i class="fa-solid fa-right-from-bracket"></i> Sign Out';
+                document.getElementById('sync-text').innerText = "Firebase Cloud Sync";
+                document.getElementById('sync-icon').className = "fa-solid fa-cloud text-emerald-400";
+
+                // Pull history from Firebase Firestore
+                const docRef = doc(db, "users", user.uid);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists() && docSnap.data().history) {
+                    window.chatHistory = docSnap.data().history;
+                    document.getElementById('chat-content').innerHTML = '';
+                    if(window.chatHistory.length > 0) {
+                        document.getElementById('welcome-screen').classList.add('hidden');
+                        window.chatHistory.forEach(msg => window.addMessage(msg.content, msg.role === 'user' ? 'user' : 'bot', true));
+                    }
+                }
             } else {
-                userName.innerText = "Guest User";
-                userEmail.innerText = "Not Synced";
-                userAvatar.src = "https://ui-avatars.com/api/?name=Guest&background=18181b&color=fff";
+                window.currentUserUID = null;
+                document.getElementById('user-name').innerText = "Guest User";
+                document.getElementById('user-email').innerText = "Not Synced";
+                document.getElementById('user-avatar').src = "https://ui-avatars.com/api/?name=Guest&background=18181b&color=fff";
                 loginBtn.innerHTML = '<i class="fa-brands fa-google"></i> Sign in with Google';
             }
         });
+
+        // Make save function available globally to save to Cloud
+        window.saveToCloud = async function(historyArray) {
+            if (window.currentUserUID) {
+                await setDoc(doc(db, "users", window.currentUserUID), { history: historyArray }, { merge: true });
+            }
+        };
     </script>
 
     <script>
@@ -265,18 +278,22 @@
         renderer.table = function(header, body) { return `<div class="table-wrapper"><table><thead>${header}</thead><tbody>${body}</tbody></table></div>`; };
         marked.setOptions({ renderer: renderer, highlight: function(code, lang) { return hljs.highlight(code, { language: lang || 'plaintext' }).value; }});
 
-        let chatHistory = JSON.parse(localStorage.getItem('novarag_history')) || [];
+        window.chatHistory = JSON.parse(localStorage.getItem('novarag_history')) || [];
         let useWebSearch = false; let activeTemp = 0.2;
         const chatBox = document.getElementById('chat-box'); const chatInput = document.getElementById('chat-input');
 
         window.onload = () => {
-            if(chatHistory.length > 0) {
+            if(window.chatHistory.length > 0 && !window.currentUserUID) {
                 document.getElementById('welcome-screen').classList.add('hidden');
-                chatHistory.forEach(msg => addMessage(msg.content, msg.role === 'user' ? 'user' : 'bot', true));
+                window.chatHistory.forEach(msg => window.addMessage(msg.content, msg.role === 'user' ? 'user' : 'bot', true));
             }
         }
 
-        function saveLocalData() { localStorage.setItem('novarag_history', JSON.stringify(chatHistory)); }
+        function saveLocalData() { 
+            localStorage.setItem('novarag_history', JSON.stringify(window.chatHistory)); 
+            if(window.saveToCloud) window.saveToCloud(window.chatHistory); // Saves to Firebase if logged in!
+        }
+
         function showToast(msg, type='success') {
             const t = document.createElement('div');
             t.className = `bg-[#18181b] border-l-2 ${type==='success'?'border-emerald-500':'border-red-500'} shadow-2xl p-3.5 rounded-lg flex items-center gap-3 animate-in min-w-[250px]`;
@@ -285,7 +302,6 @@
             setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 3500);
         }
 
-        // --- NEW TAB SWITCHING LOGIC ---
         function switchTab(tabName) {
             document.getElementById('content-general').classList.add('hidden');
             document.getElementById('content-account').classList.add('hidden');
@@ -299,19 +315,21 @@
             document.getElementById(`tab-${tabName}`).classList.replace('text-gray-500', 'text-white');
         }
 
-        // --- DELETE DATA LOGIC ---
-        function deleteLocalData() {
-            chatHistory = []; document.getElementById('chat-content').innerHTML = ''; 
+        function clearChat() {
+            window.chatHistory = []; 
+            document.getElementById('chat-content').innerHTML = ''; 
             localStorage.removeItem('novarag_history');
+            if(window.saveToCloud) window.saveToCloud([]); // Clear Firebase history too
+            
             sessionId = crypto.randomUUID(); localStorage.setItem('novarag_session_id', sessionId);
             document.getElementById('welcome-screen').classList.remove('hidden');
             document.getElementById('cif-badge').classList.add('hidden');
             document.getElementById('upload-status').classList.add('hidden');
-            toggleSettings();
+            
+            // Note: toggleSettings() is intentionally removed here so the menu doesn't pop up!
             showToast("Workspace wiped securely.", "success");
         }
 
-        function clearChat() { deleteLocalData(); }
         function toggleSettings() { document.getElementById('settings-modal').classList.toggle('hidden'); }
         function toggleWebSearch() {
             useWebSearch = !useWebSearch;
@@ -324,7 +342,7 @@
 
         document.getElementById('file-upload').addEventListener('change', async (e) => {
             const file = e.target.files[0]; if (!file) return;
-            if (file.size > 3 * 1024 * 1024) { showToast("Max 3MB allowed.", "warning"); e.target.value = ''; return; }
+            if (file.size > 15 * 1024 * 1024) { showToast("Max 15MB allowed.", "warning"); e.target.value = ''; return; }
 
             const status = document.getElementById('upload-status');
             status.classList.remove('hidden'); status.innerText = "Encrypting & Indexing...";
@@ -344,15 +362,15 @@
         async function sendMessage() {
             const text = chatInput.value.trim(); if (!text) return;
             document.getElementById('welcome-screen').classList.add('hidden');
-            addMessage(text, 'user'); chatInput.value = ''; chatInput.style.height = 'auto';
+            window.addMessage(text, 'user'); chatInput.value = ''; chatInput.style.height = 'auto';
             document.getElementById('status-bar').classList.remove('hidden');
-            const botBubble = addMessage('<span class="blinking-cursor"></span>', 'bot');
+            const botBubble = window.addMessage('<span class="blinking-cursor"></span>', 'bot');
             let botText = "";
 
             try {
                 const response = await fetch(`${API_URL}/chat`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session_id: sessionId, message: text, history: chatHistory, use_web: useWebSearch, temperature: activeTemp })
+                    body: JSON.stringify({ session_id: sessionId, message: text, history: window.chatHistory, use_web: useWebSearch, temperature: activeTemp })
                 });
                 if (!response.ok) throw new Error("Server error.");
 
@@ -370,13 +388,13 @@
                     }
                 }
                 botBubble.innerHTML = marked.parse(botText);
-                chatHistory.push({ role: "user", content: text }, { role: "assistant", content: botText });
+                window.chatHistory.push({ role: "user", content: text }, { role: "assistant", content: botText });
                 saveLocalData();
             } catch (err) { botBubble.innerHTML = `<span class="text-red-400">Network error.</span>`; }
             document.getElementById('status-bar').classList.add('hidden');
         }
 
-        function addMessage(text, role, isHistoryLoad = false) {
+        window.addMessage = function(text, role, isHistoryLoad = false) {
             const w = document.createElement('div'); w.className = `flex gap-4 mb-6 w-full animate-in ${role === 'user' ? 'justify-end' : 'justify-start'}`;
             const b = document.createElement('div');
             if (role === 'user') { b.className = `max-w-[75%] bg-[#27272a] text-gray-100 px-5 py-3.5 rounded-2xl rounded-tr-sm text-[15px] shadow-sm`; b.innerHTML = text; } 

@@ -17,15 +17,12 @@ from groq import Groq
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-# 1. CRITICAL RENDER FIX: The Health Check Endpoint
 @app.get("/")
 def health_check():
     return {"status": "Online", "system": "NovaRAG Enterprise Server by Rana Prathap Reddy"}
 
-# 2. ISOLATED MEMORY: Multi-Tenant Architecture
 active_sessions: Dict[str, dict] = {}
 
-# 3. LAZY LOADING: Prevents build-time crashes
 def get_groq_client():
     return Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
@@ -44,12 +41,11 @@ async def upload_file(file: UploadFile = File(...), session_id: str = Form(...))
         filename = file.filename.lower()
         file_content = await file.read()
         
-        # Free Tier memory protection
-        if len(file_content) > 3 * 1024 * 1024:
+        # UPGRADED FILE LIMIT: 15MB
+        if len(file_content) > 15 * 1024 * 1024:
             del file_content
-            return {"status": "error", "message": "File exceeds 3MB limit."}
+            return {"status": "error", "message": "File exceeds 15MB Enterprise limit."}
 
-        # Initialize user workspace
         if session_id not in active_sessions:
             active_sessions[session_id] = {"vector_db": None, "cif_data": ""}
 
@@ -60,13 +56,13 @@ async def upload_file(file: UploadFile = File(...), session_id: str = Form(...))
                 reader = PyPDF2.PdfReader(pdf_stream)
                 raw_text = "".join([page.extract_text() + "\n" for page in reader.pages if page.extract_text()])
                 del file_content, pdf_stream, reader
-                gc.collect() 
+                gc.collect() # Force RAM cleanup
             except Exception:
                 return {"status": "error", "message": "Unreadable PDF formatting."}
             
-            # Rate limit protection for Hugging Face
-            raw_text = raw_text[:5000] 
-            text_splitter = RecursiveCharacterTextSplitter(chunk_size=400, chunk_overlap=50)
+            # Extract up to 25,000 characters for deep RAG without breaking HuggingFace limits
+            raw_text = raw_text[:25000] 
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
             chunks = text_splitter.split_text(raw_text)
             del raw_text
             gc.collect()
@@ -74,13 +70,13 @@ async def upload_file(file: UploadFile = File(...), session_id: str = Form(...))
             try:
                 cloud_embedder = get_cloud_embeddings()
                 active_sessions[session_id]["vector_db"] = FAISS.from_texts(chunks, cloud_embedder)
-                return {"status": "success", "message": "Document vectorized securely."}
-            except Exception as e:
+                return {"status": "success", "message": "Large document vectorized securely."}
+            except Exception:
                 return {"status": "error", "message": "AI Engine warming up. Please wait 10s and retry."}
 
         elif filename.endswith(".cif") or filename.endswith(".txt"):
             active_sessions[session_id]["vector_db"] = None 
-            active_sessions[session_id]["cif_data"] = file_content.decode("utf-8", errors="ignore")[:10000] 
+            active_sessions[session_id]["cif_data"] = file_content.decode("utf-8", errors="ignore")[:20000] 
             del file_content
             gc.collect()
             return {"status": "success", "message": "Structural data isolated securely."}
@@ -111,17 +107,15 @@ async def chat_endpoint(req: ChatRequest):
         v_db = user_data["vector_db"]
         cif_mem = user_data["cif_data"]
 
-        # STRICT IDENTITY & CAPABILITIES
         system_prompt = """You are NovaRAG, an elite Enterprise AI engineered entirely by Rana Prathap Reddy.
-        
         CRITICAL GUARDRAILS:
-        1. SAFETY: Never generate harmful, illegal, or malicious code. Protect user privacy.
+        1. SAFETY: Never generate harmful or malicious code. Protect user privacy.
         2. ISOLATION: You are assisting ONE specific user in a secure session. Answer ONLY based on provided context.
         3. FORMATTING: Use Markdown Tables for data. Use concise bullet points. No massive paragraphs.
-        4. DOMAIN: Material Science (CIF analysis) and high-performance Software Engineering."""
+        4. DOMAIN: Material Science (CIF analysis), Robotic Process Automation (RPA), and Software Engineering."""
             
         if v_db is not None:
-            relevant_docs = v_db.similarity_search(req.message, k=3)
+            relevant_docs = v_db.similarity_search(req.message, k=4)
             rag_context = "\n\n".join([doc.page_content for doc in relevant_docs])
             system_prompt += f"\n\n--- USER DOCUMENT CONTEXT ---\n{rag_context}\nAnswer strictly using this context."
 
