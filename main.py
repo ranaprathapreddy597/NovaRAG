@@ -41,10 +41,10 @@ async def upload_file(file: UploadFile = File(...), session_id: str = Form(...))
         filename = file.filename.lower()
         file_content = await file.read()
         
-        # UPGRADED FILE LIMIT: 15MB
+        # ENTERPRISE FILE LIMIT: 15MB
         if len(file_content) > 15 * 1024 * 1024:
             del file_content
-            return {"status": "error", "message": "File exceeds 15MB Enterprise limit."}
+            return {"status": "error", "message": "File exceeds 15MB limit."}
 
         if session_id not in active_sessions:
             active_sessions[session_id] = {"vector_db": None, "cif_data": ""}
@@ -56,11 +56,10 @@ async def upload_file(file: UploadFile = File(...), session_id: str = Form(...))
                 reader = PyPDF2.PdfReader(pdf_stream)
                 raw_text = "".join([page.extract_text() + "\n" for page in reader.pages if page.extract_text()])
                 del file_content, pdf_stream, reader
-                gc.collect() # Force RAM cleanup
+                gc.collect() 
             except Exception:
                 return {"status": "error", "message": "Unreadable PDF formatting."}
             
-            # Extract up to 25,000 characters for deep RAG without breaking HuggingFace limits
             raw_text = raw_text[:25000] 
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
             chunks = text_splitter.split_text(raw_text)

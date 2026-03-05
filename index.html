@@ -2,7 +2,7 @@
 <html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>NovaRAG Enterprise</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -15,20 +15,25 @@
         tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { bgBase: '#09090b', bgPanel: '#18181b', bgInput: '#27272a', accent: '#ffffff' } } } }
     </script>
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #09090b; color: #e4e4e7; }
-        ::-webkit-scrollbar { width: 5px; }
+        body { font-family: 'Inter', sans-serif; background-color: #09090b; color: #e4e4e7; overscroll-behavior-y: none; }
+        ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
-        .markdown { font-size: 0.95rem; line-height: 1.7; }
+        
+        /* Markdown Styling */
+        .markdown { font-size: 0.95rem; line-height: 1.7; width: 100%; word-break: break-word; }
         .markdown h1, .markdown h2, .markdown h3 { color: #fff; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.75rem; }
         .markdown p { margin-bottom: 1rem; color: #d4d4d8; }
-        .markdown ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1.25rem; color: #d4d4d8; }
+        .markdown ul, .markdown ol { margin-left: 1.5rem; margin-bottom: 1.25rem; color: #d4d4d8; list-style-position: outside; }
+        .markdown ul { list-style-type: disc; } .markdown ol { list-style-type: decimal; }
+        .markdown li { margin-bottom: 0.25rem; }
         .markdown .table-wrapper { overflow-x: auto; margin-bottom: 1.5rem; border-radius: 0.5rem; border: 1px solid #27272a; }
         .markdown table { width: 100%; border-collapse: collapse; text-align: left; background: #18181b; }
-        .markdown th, .markdown td { border-bottom: 1px solid #27272a; padding: 0.875rem 1rem; }
-        .markdown th { background-color: #27272a; font-weight: 500; color: #fff; font-size: 0.8rem; }
-        .markdown pre { background-color: #000; padding: 1.25rem; border-radius: 0.5rem; overflow-x: auto; margin-bottom: 1.5rem; border: 1px solid #27272a; }
+        .markdown th, .markdown td { border-bottom: 1px solid #27272a; padding: 0.75rem 1rem; font-size: 0.85rem; }
+        .markdown th { background-color: #27272a; font-weight: 500; color: #fff; }
+        .markdown pre { background-color: #000; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin-bottom: 1.5rem; border: 1px solid #27272a; font-size: 0.85rem; }
         .markdown code:not(pre code) { background-color: #27272a; padding: 0.2rem 0.4rem; border-radius: 0.3rem; font-family: monospace; font-size: 0.85em; color: #fff; }
+        
         @keyframes slideIn { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .animate-in { animation: slideIn 0.3s ease-out forwards; }
         .blinking-cursor { display: inline-block; width: 6px; height: 16px; background-color: #fff; animation: blink 1s step-end infinite; margin-left: 4px; vertical-align: text-bottom; }
@@ -39,27 +44,35 @@
 </head>
 <body class="flex h-screen overflow-hidden antialiased">
 
-    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-3"></div>
+    <div id="toast-container" class="fixed top-5 left-1/2 transform -translate-x-1/2 md:left-auto md:right-5 md:translate-x-0 z-[100] flex flex-col gap-3 w-[90%] md:w-auto"></div>
 
-    <div class="w-64 bg-bgPanel border-r border-[#27272a] flex flex-col z-20 hidden md:flex">
-        <div class="p-5 flex items-center gap-3">
-            <div class="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-black font-bold shadow-md">
-                <i class="fa-solid fa-n text-sm"></i>
+    <div id="sidebar-backdrop" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-30 hidden transition-opacity" onclick="closeSidebar()"></div>
+
+    <div id="app-sidebar" class="w-[280px] bg-bgPanel border-r border-[#27272a] flex flex-col z-40 fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl md:shadow-none">
+        
+        <div class="p-5 flex items-center justify-between md:justify-start gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-black font-bold shadow-md">
+                    <i class="fa-solid fa-n text-sm"></i>
+                </div>
+                <div>
+                    <h1 class="font-semibold text-base tracking-wide text-white">NovaRAG</h1>
+                    <p class="text-[10px] text-gray-500 font-medium tracking-widest uppercase">Enterprise SaaS</p>
+                </div>
             </div>
-            <div>
-                <h1 class="font-semibold text-base tracking-wide text-white">NovaRAG</h1>
-                <p class="text-[10px] text-gray-500 font-medium tracking-widest uppercase">Enterprise SaaS</p>
-            </div>
+            <button onclick="closeSidebar()" class="md:hidden text-gray-400 hover:text-white p-2">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
         </div>
 
         <div class="px-4 py-2">
-            <button onclick="clearChat()" class="w-full flex items-center gap-3 bg-[#27272a] text-white font-medium px-4 py-2.5 rounded-xl hover:bg-[#3f3f46] transition-all text-sm border border-[#3f3f46] shadow-sm">
+            <button onclick="clearChat()" class="w-full flex items-center gap-3 bg-[#27272a] text-white font-medium px-4 py-3 rounded-xl hover:bg-[#3f3f46] transition-all text-sm border border-[#3f3f46] shadow-sm">
                 <i class="fa-solid fa-pen-to-square"></i> New Workspace
             </button>
         </div>
 
         <div class="flex-1 overflow-y-auto px-4 py-6 space-y-3">
-            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 px-1">Database Sync</p>
+            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 px-1">Database Status</p>
             <div id="history-list" class="text-xs text-gray-400 flex items-center gap-2 px-1">
                 <i class="fa-solid fa-cloud-arrow-up" id="sync-icon"></i> <span id="sync-text">Local Storage</span>
             </div>
@@ -68,9 +81,9 @@
         <div class="p-4 border-t border-[#27272a] bg-[#18181b]">
             <button onclick="toggleSettings()" class="w-full flex items-center justify-between hover:bg-[#27272a] p-2 rounded-lg transition-all">
                 <div class="flex items-center gap-3 text-left">
-                    <img id="user-avatar" src="https://ui-avatars.com/api/?name=Guest&background=18181b&color=fff" class="w-8 h-8 rounded-full shadow-inner border border-[#3f3f46]">
+                    <img id="user-avatar" src="https://ui-avatars.com/api/?name=Guest&background=18181b&color=fff" class="w-9 h-9 rounded-full shadow-inner border border-[#3f3f46]">
                     <div>
-                        <p id="user-name" class="text-sm font-medium text-white">Guest User</p>
+                        <p id="user-name" class="text-sm font-medium text-white line-clamp-1">Guest User</p>
                         <p id="user-email" class="text-[10px] text-gray-400">Not Synced</p>
                     </div>
                 </div>
@@ -79,90 +92,103 @@
         </div>
     </div>
 
-    <div class="flex-1 flex flex-col bg-bgBase h-screen relative">
-        <div class="h-14 border-b border-[#27272a] flex items-center justify-between px-6 bg-bgBase/90 backdrop-blur-md flex-shrink-0 z-10">
-            <div class="flex items-center gap-3">
-                <span class="text-gray-400 text-xs font-medium px-2.5 py-1 rounded bg-[#18181b] border border-[#27272a]">
-                    <i class="fa-solid fa-shield-halved mr-1"></i> Isolated Tenant Session
-                </span>
-                <span id="cif-badge" class="hidden text-emerald-400 text-xs font-medium px-2.5 py-1 rounded bg-emerald-500/10 border border-emerald-500/20 animate-in">
-                    <i class="fa-solid fa-lock mr-1"></i> Data Secured
-                </span>
+    <div class="flex-1 flex flex-col bg-bgBase h-screen relative w-full overflow-hidden">
+        
+        <div class="h-14 border-b border-[#27272a] flex items-center justify-between px-4 md:px-6 bg-bgBase/90 backdrop-blur-md flex-shrink-0 z-10 w-full">
+            <div class="flex items-center">
+                <button onclick="openSidebar()" class="md:hidden text-gray-400 hover:text-white mr-3 p-1">
+                    <i class="fa-solid fa-bars text-lg"></i>
+                </button>
+                
+                <div class="flex items-center gap-2 overflow-x-auto whitespace-nowrap hide-scrollbar">
+                    <span class="text-gray-400 text-[10px] md:text-xs font-medium px-2 py-1 rounded bg-[#18181b] border border-[#27272a]">
+                        <i class="fa-solid fa-shield-halved mr-1"></i> Tenant Session
+                    </span>
+                    <span id="cif-badge" class="hidden text-emerald-400 text-[10px] md:text-xs font-medium px-2 py-1 rounded bg-emerald-500/10 border border-emerald-500/20 animate-in">
+                        <i class="fa-solid fa-lock mr-1"></i> Data Secured
+                    </span>
+                </div>
             </div>
             
-            <button onclick="exportChat()" class="text-gray-400 hover:text-white transition-all text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-[#27272a] flex items-center gap-2">
-                <i class="fa-solid fa-download"></i> Export
+            <button onclick="exportChat()" class="text-gray-400 hover:text-white transition-all text-xs font-medium px-2 md:px-3 py-1.5 rounded-lg hover:bg-[#27272a] flex items-center gap-2 shrink-0">
+                <i class="fa-solid fa-download"></i> <span class="hidden md:inline">Export</span>
             </button>
         </div>
 
-        <div id="chat-box" class="flex-1 overflow-y-auto p-4 md:p-8 relative">
-            <div id="welcome-screen" class="absolute inset-0 flex flex-col items-center justify-center text-center max-w-2xl mx-auto pb-20 transition-opacity duration-300">
-                <div class="w-16 h-16 rounded-2xl bg-[#18181b] flex items-center justify-center mb-6 border border-[#27272a] shadow-lg">
-                    <i class="fa-solid fa-bolt text-2xl text-white"></i>
+        <div id="chat-box" class="flex-1 overflow-y-auto p-3 md:p-8 relative scroll-smooth w-full">
+            
+            <div id="welcome-screen" class="absolute inset-0 flex flex-col items-center justify-center text-center w-full px-4 pb-20 transition-opacity duration-300">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-[#18181b] flex items-center justify-center mb-6 border border-[#27272a] shadow-lg">
+                    <i class="fa-solid fa-bolt text-xl md:text-2xl text-white"></i>
                 </div>
-                <h2 class="text-2xl font-semibold mb-3 text-white">What shall we build today?</h2>
-                <p class="text-gray-400 text-sm mb-10 max-w-md">Upload confidential documents to your secure workspace, or generate code.</p>
+                <h2 class="text-xl md:text-2xl font-semibold mb-3 text-white">What shall we build today?</h2>
+                <p class="text-gray-400 text-xs md:text-sm mb-8 max-w-md">Upload confidential documents to your secure workspace, or generate code.</p>
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full px-4">
-                    <button onclick="document.getElementById('chat-input').value='Analyze this material structure and output a parameter table:'; document.getElementById('chat-input').focus();" class="bg-[#18181b] hover:bg-[#27272a] p-5 rounded-2xl text-left border border-[#27272a] transition-all group">
-                        <i class="fa-solid fa-atom text-gray-500 mb-3 text-lg group-hover:text-white transition-colors"></i>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 w-full max-w-2xl">
+                    <button onclick="document.getElementById('chat-input').value='Analyze this material structure and output a parameter table:'; document.getElementById('chat-input').focus();" class="bg-[#18181b] hover:bg-[#27272a] p-4 md:p-5 rounded-2xl text-left border border-[#27272a] transition-all group">
+                        <i class="fa-solid fa-atom text-gray-500 mb-2 md:mb-3 text-base md:text-lg group-hover:text-white transition-colors"></i>
                         <p class="text-sm text-gray-200 font-medium mb-1">Materials & CIF</p>
-                        <p class="text-xs text-gray-500">Secure structural analysis</p>
+                        <p class="text-[11px] md:text-xs text-gray-500">Secure structural analysis</p>
                     </button>
                     
-                    <button onclick="document.getElementById('chat-input').value='Write an Automation Anywhere script to extract data from a web table:'; document.getElementById('chat-input').focus();" class="bg-[#18181b] hover:bg-[#27272a] p-5 rounded-2xl text-left border border-[#27272a] transition-all group">
-                        <i class="fa-solid fa-robot text-gray-500 mb-3 text-lg group-hover:text-white transition-colors"></i>
+                    <button onclick="document.getElementById('chat-input').value='Write an Automation Anywhere script to extract data from a web table:'; document.getElementById('chat-input').focus();" class="bg-[#18181b] hover:bg-[#27272a] p-4 md:p-5 rounded-2xl text-left border border-[#27272a] transition-all group">
+                        <i class="fa-solid fa-robot text-gray-500 mb-2 md:mb-3 text-base md:text-lg group-hover:text-white transition-colors"></i>
                         <p class="text-sm text-gray-200 font-medium mb-1">RPA Automation</p>
-                        <p class="text-xs text-gray-500">Enterprise workflows</p>
+                        <p class="text-[11px] md:text-xs text-gray-500">Enterprise workflows</p>
                     </button>
                 </div>
             </div>
+            
             <div id="chat-content" class="relative z-10 w-full flex flex-col pb-6 max-w-3xl mx-auto"></div>
         </div>
 
-        <div class="px-4 pb-6 pt-2 bg-gradient-to-t from-[#09090b] via-[#09090b] to-transparent flex-shrink-0 relative">
+        <div class="px-3 md:px-4 pb-4 md:pb-6 pt-2 bg-gradient-to-t from-[#09090b] via-[#09090b] to-transparent flex-shrink-0 w-full relative z-20">
             <div class="max-w-3xl mx-auto relative">
-                <div id="status-bar" class="absolute -top-8 left-4 text-[11px] font-medium text-gray-400 hidden flex items-center gap-2">
+                
+                <div id="status-bar" class="absolute -top-6 left-2 text-[10px] md:text-[11px] font-medium text-gray-400 hidden flex items-center gap-2">
                     <i class="fa-solid fa-circle-notch fa-spin"></i> <span id="status-text">Thinking...</span>
                 </div>
-                <div class="premium-input-container flex items-end p-2 px-3 gap-2">
-                    <div class="flex items-center gap-1 pb-1">
-                        <label class="cursor-pointer text-gray-400 hover:text-white hover:bg-[#3f3f46] w-9 h-9 rounded-full flex items-center justify-center transition-all">
-                            <i class="fa-solid fa-paperclip text-[15px]"></i>
+
+                <div class="premium-input-container flex items-end p-1.5 md:p-2 px-2 md:px-3 gap-1 md:gap-2">
+                    <div class="flex items-center gap-0.5 md:gap-1 pb-1 shrink-0">
+                        <label class="cursor-pointer text-gray-400 hover:text-white hover:bg-[#3f3f46] w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center transition-all">
+                            <i class="fa-solid fa-paperclip text-[14px]"></i>
                             <input type="file" id="file-upload" accept=".pdf,.cif,.txt" class="hidden">
                         </label>
-                        <button id="web-btn" onclick="toggleWebSearch()" class="text-gray-400 hover:text-white hover:bg-[#3f3f46] w-9 h-9 rounded-full flex items-center justify-center transition-all">
-                            <i class="fa-solid fa-globe text-[15px]"></i>
+                        <button id="web-btn" onclick="toggleWebSearch()" class="text-gray-400 hover:text-white hover:bg-[#3f3f46] w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center transition-all">
+                            <i class="fa-solid fa-globe text-[14px]"></i>
                         </button>
                     </div>
-                    <textarea id="chat-input" rows="1" placeholder="Message NovaRAG..." class="flex-1 bg-transparent border-none focus:outline-none text-white placeholder-gray-500 resize-none text-[15px] py-2.5 leading-relaxed" oninput="this.style.height = '';this.style.height = Math.min(this.scrollHeight, 200) + 'px'"></textarea>
-                    <div class="pb-1 pl-1">
-                        <button onclick="sendMessage()" class="bg-white text-black hover:bg-gray-200 w-9 h-9 rounded-full flex items-center justify-center transition-transform hover:scale-105 shadow-md">
-                            <i class="fa-solid fa-arrow-up text-[15px]"></i>
+
+                    <textarea id="chat-input" rows="1" placeholder="Message NovaRAG..." class="flex-1 bg-transparent border-none focus:outline-none text-white placeholder-gray-500 resize-none text-[14px] md:text-[15px] py-2 md:py-2.5 leading-relaxed" oninput="this.style.height = '';this.style.height = Math.min(this.scrollHeight, 150) + 'px'"></textarea>
+                    
+                    <div class="pb-1 pl-1 shrink-0">
+                        <button onclick="sendMessage()" class="bg-white text-black hover:bg-gray-200 w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center transition-transform hover:scale-105 shadow-md">
+                            <i class="fa-solid fa-arrow-up text-[14px]"></i>
                         </button>
                     </div>
                 </div>
-                <div class="flex justify-between items-center mt-2 px-2">
-                    <span id="upload-status" class="text-[10px] font-medium hidden text-emerald-400 tracking-wide"></span>
-                    <p class="text-[10px] text-gray-500 tracking-wide flex-1 text-center">NovaRAG is an AI. Verify critical code and data.</p>
+                <div class="flex justify-between items-center mt-2 px-1 md:px-2">
+                    <span id="upload-status" class="text-[9px] md:text-[10px] font-medium hidden text-emerald-400 tracking-wide"></span>
+                    <p class="text-[9px] md:text-[10px] text-gray-500 tracking-wide flex-1 text-center">NovaRAG can make mistakes. Verify code and parameters.</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="settings-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center transition-opacity">
-        <div class="bg-[#18181b] border border-[#27272a] w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-            <div class="p-5 border-b border-[#27272a] flex items-center justify-between bg-[#18181b]">
+    <div id="settings-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center transition-opacity px-4">
+        <div class="bg-[#18181b] border border-[#27272a] w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-4 md:p-5 border-b border-[#27272a] flex items-center justify-between bg-[#18181b] shrink-0">
                 <h3 class="text-base font-semibold text-white">Workspace Settings</h3>
-                <button onclick="toggleSettings()" class="text-gray-500 hover:text-white transition-colors"><i class="fa-solid fa-xmark"></i></button>
+                <button onclick="toggleSettings()" class="text-gray-500 hover:text-white transition-colors p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
             
-            <div class="flex border-b border-[#27272a]">
+            <div class="flex border-b border-[#27272a] shrink-0">
                 <button id="tab-general" onclick="switchTab('general')" class="flex-1 py-3 text-sm font-medium text-white border-b-2 border-white transition-all">General</button>
                 <button id="tab-account" onclick="switchTab('account')" class="flex-1 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-300 transition-all">Account</button>
             </div>
 
-            <div id="content-general" class="p-6 space-y-6">
+            <div id="content-general" class="p-5 md:p-6 space-y-6 overflow-y-auto">
                 <div>
                     <label class="flex justify-between text-sm font-medium text-gray-300 mb-3">
                         <span>Model Creativity (Temperature)</span>
@@ -172,24 +198,24 @@
                 </div>
                 <div class="pt-4 border-t border-[#27272a]">
                     <p class="text-sm font-medium text-white mb-2">Danger Zone</p>
-                    <button onclick="clearChat()" class="w-full bg-red-500/10 text-red-500 border border-red-500/20 py-2 rounded-lg text-sm font-medium hover:bg-red-500/20 transition-all">Wipe Workspace Data</button>
+                    <button onclick="clearChat(true)" class="w-full bg-red-500/10 text-red-500 border border-red-500/20 py-2.5 rounded-lg text-sm font-medium hover:bg-red-500/20 transition-all">Wipe Workspace Data</button>
                 </div>
             </div>
 
-            <div id="content-account" class="p-6 space-y-6 hidden">
+            <div id="content-account" class="p-5 md:p-6 space-y-6 overflow-y-auto hidden">
                 <div class="bg-[#09090b] p-4 rounded-xl border border-[#27272a] flex flex-col gap-4">
                     <div>
                         <p class="text-sm font-medium text-white">Google Auth Sync</p>
-                        <p class="text-[10px] text-gray-400 mt-0.5">Connect your Google Account to sync chats across devices using Firestore.</p>
+                        <p class="text-[11px] text-gray-400 mt-1">Connect your Google Account to sync chats across your phone and laptop using Firestore.</p>
                     </div>
-                    <button id="google-login-btn" class="w-full bg-white text-black px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-200 transition-all flex items-center justify-center gap-2">
+                    <button id="google-login-btn" class="w-full bg-white text-black px-4 py-3 rounded-lg text-sm font-semibold hover:bg-gray-200 transition-all flex items-center justify-center gap-2 shadow-sm">
                         <i class="fa-brands fa-google"></i> Sign in with Google
                     </button>
                 </div>
             </div>
 
-            <div class="p-4 bg-[#09090b] flex justify-end border-t border-[#27272a]">
-                <button onclick="toggleSettings()" class="bg-white text-black px-5 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition-all">Done</button>
+            <div class="p-4 bg-[#09090b] flex justify-end border-t border-[#27272a] shrink-0">
+                <button onclick="toggleSettings()" class="bg-white text-black px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-200 transition-all">Done</button>
             </div>
         </div>
     </div>
@@ -201,75 +227,88 @@
 
         // 🔴🔴🔴 PASTE YOUR FIREBASE KEYS HERE 🔴🔴🔴
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT_ID.appspot.com",
-            messagingSenderId: "YOUR_SENDER_ID",
-            appId: "YOUR_APP_ID"
+            apiKey: "AIzaSyCZdGzTqUqwKO0FD99LpsHEMXrXoY1hDc4",
+            authDomain: "novarag-69b41.firebaseapp.com",
+            projectId: "novarag-69b41",
+            storageBucket: "novarag-69b41.firebasestorage.app",
+            messagingSenderId: "131156901542",
+            appId: "1:131156901542:web:446bb5b7d8b3bf768bfe67"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const provider = new GoogleAuthProvider();
+        try {
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            const db = getFirestore(app);
+            const provider = new GoogleAuthProvider();
 
-        const loginBtn = document.getElementById('google-login-btn');
-        window.currentUserUID = null;
+            const loginBtn = document.getElementById('google-login-btn');
+            window.currentUserUID = null;
 
-        loginBtn.addEventListener('click', () => {
-            if (auth.currentUser) {
-                signOut(auth).then(() => {
-                    window.currentUserUID = null;
-                    document.getElementById('sync-text').innerText = "Local Storage";
-                    document.getElementById('sync-icon').className = "fa-solid fa-cloud-arrow-up text-gray-400";
-                    showToast("Signed out securely.", "success");
-                });
-            } else {
-                signInWithPopup(auth, provider).catch(error => showToast(`Auth Error: ${error.message}`, "warning"));
-            }
-        });
-
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                window.currentUserUID = user.uid;
-                document.getElementById('user-name').innerText = user.displayName;
-                document.getElementById('user-email').innerText = "Cloud Sync Active";
-                document.getElementById('user-avatar').src = user.photoURL;
-                loginBtn.innerHTML = '<i class="fa-solid fa-right-from-bracket"></i> Sign Out';
-                document.getElementById('sync-text').innerText = "Firebase Cloud Sync";
-                document.getElementById('sync-icon').className = "fa-solid fa-cloud text-emerald-400";
-
-                // Pull history from Firebase Firestore
-                const docRef = doc(db, "users", user.uid);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists() && docSnap.data().history) {
-                    window.chatHistory = docSnap.data().history;
-                    document.getElementById('chat-content').innerHTML = '';
-                    if(window.chatHistory.length > 0) {
-                        document.getElementById('welcome-screen').classList.add('hidden');
-                        window.chatHistory.forEach(msg => window.addMessage(msg.content, msg.role === 'user' ? 'user' : 'bot', true));
-                    }
+            loginBtn.addEventListener('click', () => {
+                if (auth.currentUser) {
+                    signOut(auth).then(() => {
+                        window.currentUserUID = null;
+                        document.getElementById('sync-text').innerText = "Local Storage";
+                        document.getElementById('sync-icon').className = "fa-solid fa-cloud-arrow-up text-gray-400";
+                        showToast("Signed out securely.", "success");
+                    });
+                } else {
+                    signInWithPopup(auth, provider).catch(error => showToast(`Auth Error: ${error.message}`, "warning"));
                 }
-            } else {
-                window.currentUserUID = null;
-                document.getElementById('user-name').innerText = "Guest User";
-                document.getElementById('user-email').innerText = "Not Synced";
-                document.getElementById('user-avatar').src = "https://ui-avatars.com/api/?name=Guest&background=18181b&color=fff";
-                loginBtn.innerHTML = '<i class="fa-brands fa-google"></i> Sign in with Google';
-            }
-        });
+            });
 
-        // Make save function available globally to save to Cloud
-        window.saveToCloud = async function(historyArray) {
-            if (window.currentUserUID) {
-                await setDoc(doc(db, "users", window.currentUserUID), { history: historyArray }, { merge: true });
-            }
-        };
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    window.currentUserUID = user.uid;
+                    document.getElementById('user-name').innerText = user.displayName;
+                    document.getElementById('user-email').innerText = "Cloud Sync Active";
+                    document.getElementById('user-avatar').src = user.photoURL;
+                    loginBtn.innerHTML = '<i class="fa-solid fa-right-from-bracket"></i> Sign Out';
+                    document.getElementById('sync-text').innerText = "Firebase Cloud Sync";
+                    document.getElementById('sync-icon').className = "fa-solid fa-cloud text-emerald-400";
+
+                    // Pull history from Firestore
+                    const docRef = doc(db, "users", user.uid);
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists() && docSnap.data().history) {
+                        window.chatHistory = docSnap.data().history;
+                        document.getElementById('chat-content').innerHTML = '';
+                        if(window.chatHistory.length > 0) {
+                            document.getElementById('welcome-screen').classList.add('hidden');
+                            window.chatHistory.forEach(msg => window.addMessage(msg.content, msg.role === 'user' ? 'user' : 'bot', true));
+                        }
+                    }
+                } else {
+                    window.currentUserUID = null;
+                    document.getElementById('user-name').innerText = "Guest User";
+                    document.getElementById('user-email').innerText = "Not Synced";
+                    document.getElementById('user-avatar').src = "https://ui-avatars.com/api/?name=Guest&background=18181b&color=fff";
+                    loginBtn.innerHTML = '<i class="fa-brands fa-google"></i> Sign in with Google';
+                }
+            });
+
+            window.saveToCloud = async function(historyArray) {
+                if (window.currentUserUID) {
+                    await setDoc(doc(db, "users", window.currentUserUID), { history: historyArray }, { merge: true });
+                }
+            };
+        } catch(e) {
+            console.warn("Firebase not configured yet.");
+        }
     </script>
 
     <script>
         const API_URL = "https://novarag-api.onrender.com"; 
+
+        // Mobile Sidebar Logic
+        function openSidebar() {
+            document.getElementById('app-sidebar').classList.remove('-translate-x-full');
+            document.getElementById('sidebar-backdrop').classList.remove('hidden');
+        }
+        function closeSidebar() {
+            document.getElementById('app-sidebar').classList.add('-translate-x-full');
+            document.getElementById('sidebar-backdrop').classList.add('hidden');
+        }
 
         let sessionId = localStorage.getItem('novarag_session_id') || crypto.randomUUID();
         localStorage.setItem('novarag_session_id', sessionId);
@@ -291,13 +330,13 @@
 
         function saveLocalData() { 
             localStorage.setItem('novarag_history', JSON.stringify(window.chatHistory)); 
-            if(window.saveToCloud) window.saveToCloud(window.chatHistory); // Saves to Firebase if logged in!
+            if(window.saveToCloud) window.saveToCloud(window.chatHistory); 
         }
 
         function showToast(msg, type='success') {
             const t = document.createElement('div');
-            t.className = `bg-[#18181b] border-l-2 ${type==='success'?'border-emerald-500':'border-red-500'} shadow-2xl p-3.5 rounded-lg flex items-center gap-3 animate-in min-w-[250px]`;
-            t.innerHTML = `<span class="text-sm font-medium text-gray-200">${msg}</span>`;
+            t.className = `bg-[#18181b] border-l-2 ${type==='success'?'border-emerald-500':'border-red-500'} shadow-2xl p-3 md:p-3.5 rounded-lg flex items-center gap-3 animate-in w-full md:w-auto md:min-w-[250px]`;
+            t.innerHTML = `<span class="text-[13px] md:text-sm font-medium text-gray-200">${msg}</span>`;
             document.getElementById('toast-container').appendChild(t);
             setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 3500);
         }
@@ -315,22 +354,27 @@
             document.getElementById(`tab-${tabName}`).classList.replace('text-gray-500', 'text-white');
         }
 
-        function clearChat() {
+        function clearChat(closeModal = false) {
             window.chatHistory = []; 
             document.getElementById('chat-content').innerHTML = ''; 
             localStorage.removeItem('novarag_history');
-            if(window.saveToCloud) window.saveToCloud([]); // Clear Firebase history too
+            if(window.saveToCloud) window.saveToCloud([]); 
             
             sessionId = crypto.randomUUID(); localStorage.setItem('novarag_session_id', sessionId);
             document.getElementById('welcome-screen').classList.remove('hidden');
             document.getElementById('cif-badge').classList.add('hidden');
             document.getElementById('upload-status').classList.add('hidden');
             
-            // Note: toggleSettings() is intentionally removed here so the menu doesn't pop up!
+            if(closeModal) toggleSettings();
+            if(window.innerWidth < 768) closeSidebar(); // Auto-close sidebar on mobile
             showToast("Workspace wiped securely.", "success");
         }
 
-        function toggleSettings() { document.getElementById('settings-modal').classList.toggle('hidden'); }
+        function toggleSettings() { 
+            document.getElementById('settings-modal').classList.toggle('hidden'); 
+            if(window.innerWidth < 768) closeSidebar();
+        }
+        
         function toggleWebSearch() {
             useWebSearch = !useWebSearch;
             const btn = document.getElementById('web-btn');
@@ -338,7 +382,22 @@
             else btn.classList.replace('text-white', 'text-gray-400');
         }
 
-        chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }});
+        function exportChat() {
+            if(window.chatHistory.length === 0) { showToast('No data to export.', 'warning'); return; }
+            let exportText = "# NovaRAG Secure Transcript\n\n---\n\n";
+            window.chatHistory.forEach(msg => { exportText += `### ${msg.role === 'user' ? 'User' : 'NovaRAG'}\n${msg.content}\n\n---\n\n`; });
+            const blob = new Blob([exportText], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = `NovaRAG_Export.md`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+        }
+
+        chatInput.addEventListener('keydown', (e) => { 
+            // Better mobile handling: Enter sends, Shift+Enter new line
+            if (e.key === 'Enter' && !e.shiftKey && window.innerWidth > 768) { 
+                e.preventDefault(); sendMessage(); 
+            } 
+        });
 
         document.getElementById('file-upload').addEventListener('change', async (e) => {
             const file = e.target.files[0]; if (!file) return;
@@ -395,11 +454,22 @@
         }
 
         window.addMessage = function(text, role, isHistoryLoad = false) {
-            const w = document.createElement('div'); w.className = `flex gap-4 mb-6 w-full animate-in ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+            const w = document.createElement('div'); 
+            w.className = `flex gap-2 md:gap-4 mb-5 md:mb-6 w-full animate-in ${role === 'user' ? 'justify-end' : 'justify-start'}`;
             const b = document.createElement('div');
-            if (role === 'user') { b.className = `max-w-[75%] bg-[#27272a] text-gray-100 px-5 py-3.5 rounded-2xl rounded-tr-sm text-[15px] shadow-sm`; b.innerHTML = text; } 
-            else { w.innerHTML = `<div class="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-black font-bold flex-shrink-0 shadow-sm"><i class="fa-solid fa-n text-[10px]"></i></div>`; b.className = `max-w-[85%] bg-transparent text-[#e4e4e7] markdown pt-1 overflow-hidden`; b.innerHTML = isHistoryLoad ? marked.parse(text) : text; }
-            w.appendChild(b); document.getElementById('chat-content').appendChild(w); chatBox.scrollTop = chatBox.scrollHeight; return b;
+            
+            if (role === 'user') { 
+                b.className = `max-w-[85%] md:max-w-[75%] bg-[#27272a] text-gray-100 px-4 py-2.5 md:px-5 md:py-3.5 rounded-2xl rounded-tr-sm text-[14px] md:text-[15px] shadow-sm break-words`; 
+                b.innerHTML = text; 
+            } else { 
+                w.innerHTML = `<div class="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-white flex items-center justify-center text-black font-bold flex-shrink-0 shadow-sm mt-1"><i class="fa-solid fa-n text-[10px]"></i></div>`; 
+                b.className = `max-w-[85%] bg-transparent text-[#e4e4e7] markdown pt-0.5 overflow-hidden`; 
+                b.innerHTML = isHistoryLoad ? marked.parse(text) : text; 
+            }
+            
+            w.appendChild(b); document.getElementById('chat-content').appendChild(w); 
+            chatBox.scrollTop = chatBox.scrollHeight; 
+            return b;
         }
     </script>
 </body>
