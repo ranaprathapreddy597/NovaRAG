@@ -41,10 +41,9 @@ async def upload_file(file: UploadFile = File(...), session_id: str = Form(...))
         filename = file.filename.lower()
         file_content = await file.read()
         
-        # ENTERPRISE FILE LIMIT: 15MB
         if len(file_content) > 15 * 1024 * 1024:
             del file_content
-            return {"status": "error", "message": "File exceeds 15MB limit."}
+            return {"status": "error", "message": "File exceeds 15MB Enterprise limit."}
 
         if session_id not in active_sessions:
             active_sessions[session_id] = {"vector_db": None, "cif_data": ""}
@@ -111,7 +110,7 @@ async def chat_endpoint(req: ChatRequest):
         1. SAFETY: Never generate harmful or malicious code. Protect user privacy.
         2. ISOLATION: You are assisting ONE specific user in a secure session. Answer ONLY based on provided context.
         3. FORMATTING: Use Markdown Tables for data. Use concise bullet points. No massive paragraphs.
-        4. DOMAIN: Material Science (CIF analysis), Robotic Process Automation (RPA), and Software Engineering."""
+        4. DOMAIN: Material Science (CIF analysis), Robotic Process Automation (Automation Anywhere scripts), and Software Engineering."""
             
         if v_db is not None:
             relevant_docs = v_db.similarity_search(req.message, k=4)

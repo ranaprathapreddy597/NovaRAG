@@ -1,11 +1,12 @@
 {
   "name": "NovaRAG Enterprise",
   "short_name": "NovaRAG",
+  "description": "Enterprise AI for Material Science and Software Engineering.",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#09090b",
   "theme_color": "#09090b",
-  "start_url": "/",
-"icons": [
+  "icons": [
     {
       "src": "/logo.png",
       "sizes": "192x192",
