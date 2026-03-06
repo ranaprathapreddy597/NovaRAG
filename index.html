@@ -5,11 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
     <title>NovaRAG Enterprise AI</title>
-    <meta name="title" content="NovaRAG Enterprise AI">
-    <meta name="description" content="An elite Enterprise AI engineered for Material Science (CIF analysis), RPA workflows, and Software Engineering.">
     <meta name="theme-color" content="#09090b">
     <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" href="/logo.png">
     <link rel="icon" href="/logo.png" type="image/png">
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -21,7 +18,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
 
     <script>
-        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { bgBase: '#09090b', bgPanel: '#18181b', bgInput: '#27272a', accent: '#ffffff' } } } }
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { bgBase: '#09090b', bgPanel: '#18181b', bgInput: '#27272a' } } } }
     </script>
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #09090b; color: #e4e4e7; overscroll-behavior-y: none; }
@@ -36,7 +33,9 @@
         .markdown table { width: 100%; border-collapse: collapse; text-align: left; background: #18181b; margin-bottom: 1.5rem; border-radius: 0.5rem; border: 1px solid #27272a;}
         .markdown th, .markdown td { border-bottom: 1px solid #27272a; padding: 0.75rem 1rem; font-size: 0.85rem; }
         .markdown th { background-color: #27272a; color: #fff; font-weight: 500;}
-        .markdown pre { background-color: #000; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin-bottom: 1.5rem; border: 1px solid #27272a; font-size: 0.85rem; }
+        
+        /* Premium Code Block Styling */
+        .markdown pre { background-color: #0d1117; padding: 1rem; border-radius: 0 0 0.5rem 0.5rem; overflow-x: auto; margin-bottom: 1.5rem; border: 1px solid #3f3f46; border-top: none; font-size: 0.85rem; }
         .markdown code:not(pre code) { background-color: #27272a; padding: 0.2rem 0.4rem; border-radius: 0.3rem; font-family: monospace; font-size: 0.85em; color: #fff; }
         
         @keyframes slideIn { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -193,9 +192,6 @@
                         <i class="fa-brands fa-google"></i> Sign in with Google
                     </button>
                 </div>
-                <div class="pt-4 border-t border-[#27272a]">
-                    <button onclick="clearAllData()" class="w-full bg-red-500/10 text-red-500 border border-red-500/20 py-2.5 rounded-lg text-sm font-medium hover:bg-red-500/20">Wipe All Workspaces</button>
-                </div>
             </div>
         </div>
     </div>
@@ -207,13 +203,14 @@
 
         // 🔴🔴🔴 PASTE YOUR FIREBASE KEYS HERE 🔴🔴🔴
         const firebaseConfig = {
-            apiKey: "AIzaSyCZdGzTqUqwKO0FD99LpsHEMXrXoY1hDc4",
-            authDomain: "novarag-69b41.firebaseapp.com",
-            projectId: "novarag-69b41",
-            storageBucket: "novarag-69b41.firebasestorage.app",
-            messagingSenderId: "131156901542",
-            appId: "1:131156901542:web:446bb5b7d8b3bf768bfe67"
-            };
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
         try {
             const app = initializeApp(firebaseConfig);
             const auth = getAuth(app);
@@ -249,13 +246,10 @@
                     document.getElementById('sync-text').innerText = "Firebase Cloud Sync";
                     document.getElementById('sync-icon').className = "fa-solid fa-cloud text-emerald-400";
 
-                    // Load User's Sessions from Firestore
                     const docRef = doc(db, "users", user.uid);
                     const docSnap = await getDoc(docRef);
                     if (docSnap.exists() && docSnap.data().sessions) {
                         window.allSessions = docSnap.data().sessions;
-                        
-                        // Default to the most recently updated session
                         const sortedIds = Object.keys(window.allSessions).sort((a,b) => window.allSessions[b].updatedAt - window.allSessions[a].updatedAt);
                         if(sortedIds.length > 0) {
                             window.loadSession(sortedIds[0]);
@@ -263,7 +257,6 @@
                             createNewWorkspace();
                         }
                     } else {
-                        // First time login, save current local sessions to cloud
                         window.saveToCloud(window.allSessions);
                     }
                 } else {
@@ -295,15 +288,36 @@
             if(useWebSearch) btn.classList.replace('text-gray-400', 'text-white'); else btn.classList.replace('text-white', 'text-gray-400');
         }
 
+        // --- MARKDOWN & SYNTAX HIGHLIGHTING (VS Code Style + Copy Button) ---
         const renderer = new marked.Renderer();
         renderer.table = function(header, body) { return `<div class="table-wrapper"><table><thead>${header}</thead><tbody>${body}</tbody></table></div>`; };
-        marked.setOptions({ renderer: renderer, highlight: function(code, lang) { return hljs.highlight(code, { language: lang || 'plaintext' }).value; }});
+        
+        renderer.code = function(code, language) {
+            const validLang = hljs.getLanguage(language) ? language : 'plaintext';
+            const highlighted = hljs.highlight(code, { language: validLang }).value;
+            const codeId = 'code-' + Math.random().toString(36).substr(2, 9);
+            return `
+                <div class="relative group mb-4 font-sans">
+                    <div class="flex items-center justify-between bg-[#27272a] text-gray-400 px-3 py-1.5 text-[11px] uppercase tracking-wider font-semibold rounded-t-md border border-[#3f3f46] border-b-0">
+                        <span>${validLang}</span>
+                        <button onclick="copyCode('${codeId}')" class="hover:text-white transition-colors flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy code</button>
+                    </div>
+                    <pre class="!mt-0 !rounded-t-none"><code id="${codeId}" class="hljs ${validLang}">${highlighted}</code></pre>
+                </div>
+            `;
+        };
+        marked.setOptions({ renderer: renderer });
+
+        window.copyCode = function(id) {
+            const codeText = document.getElementById(id).innerText;
+            navigator.clipboard.writeText(codeText);
+            showToast("Code copied to clipboard!", "success");
+        }
 
         // --- SESSION MANAGEMENT LOGIC ---
         window.allSessions = JSON.parse(localStorage.getItem('novarag_sessions')) || {};
         let sessionId = localStorage.getItem('novarag_session_id') || crypto.randomUUID();
         
-        // Initialize if empty
         if (!window.allSessions[sessionId]) {
             window.allSessions[sessionId] = { title: "New Workspace", history: [], updatedAt: Date.now() };
         }
@@ -328,11 +342,13 @@
         }
 
         function saveLocalData() { 
-            // Auto-generate title from the first user message
+            // SMART TITLE GENERATOR: Removes generic words, capitalizes the subject.
             if(window.chatHistory.length > 0 && window.allSessions[sessionId].title === "New Workspace") {
                 let firstMsg = window.chatHistory.find(m => m.role === 'user');
                 if(firstMsg) {
-                    window.allSessions[sessionId].title = firstMsg.content.substring(0, 22) + (firstMsg.content.length > 22 ? "..." : "");
+                    let cleanTitle = firstMsg.content.replace(/^(write|create|generate|what is|how to|can you|analyze)\s+/i, '');
+                    cleanTitle = cleanTitle.charAt(0).toUpperCase() + cleanTitle.slice(1);
+                    window.allSessions[sessionId].title = cleanTitle.substring(0, 22) + (cleanTitle.length > 22 ? "..." : "");
                 }
             }
             window.allSessions[sessionId].history = window.chatHistory;
@@ -348,18 +364,28 @@
             const list = document.getElementById('sessions-list');
             list.innerHTML = '';
             
-            // Sort by most recently updated
             const sortedIds = Object.keys(window.allSessions).sort((a,b) => window.allSessions[b].updatedAt - window.allSessions[a].updatedAt);
             
             sortedIds.forEach(id => {
-                // Hide empty ghost sessions unless it's the currently active one
                 if(window.allSessions[id].history.length === 0 && id !== sessionId) return; 
                 
-                const btn = document.createElement('button');
-                btn.className = `w-full text-left px-3 py-2.5 rounded-lg text-[13px] font-medium truncate transition-all mb-1 flex items-center gap-2 ${id === sessionId ? 'bg-[#27272a] text-white border border-[#3f3f46]' : 'text-gray-400 hover:bg-[#18181b] hover:text-gray-200'}`;
-                btn.innerHTML = `<i class="fa-regular fa-message text-[11px] opacity-70"></i> ${window.allSessions[id].title}`;
-                btn.onclick = () => window.loadSession(id);
-                list.appendChild(btn);
+                const wrapper = document.createElement('div');
+                wrapper.className = `w-full flex items-center justify-between px-3 py-2.5 rounded-lg mb-1 group transition-all cursor-pointer ${id === sessionId ? 'bg-[#27272a] text-white border border-[#3f3f46]' : 'text-gray-400 hover:bg-[#18181b] hover:text-gray-200'}`;
+                
+                const titleBtn = document.createElement('div');
+                titleBtn.className = "flex-1 truncate text-[13px] font-medium flex items-center gap-2";
+                titleBtn.innerHTML = `<i class="fa-regular fa-message text-[11px] opacity-70"></i> <span class="truncate">${window.allSessions[id].title}</span>`;
+                titleBtn.onclick = () => window.loadSession(id);
+                
+                // DELETE WORKSPACE BUTTON
+                const delBtn = document.createElement('button');
+                delBtn.className = "opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all px-1";
+                delBtn.innerHTML = `<i class="fa-regular fa-trash-can"></i>`;
+                delBtn.onclick = (e) => { e.stopPropagation(); window.deleteWorkspace(id); };
+                
+                wrapper.appendChild(titleBtn);
+                wrapper.appendChild(delBtn);
+                list.appendChild(wrapper);
             });
         }
 
@@ -367,46 +393,41 @@
             sessionId = id;
             localStorage.setItem('novarag_session_id', sessionId);
             window.chatHistory = window.allSessions[sessionId].history || [];
-            
-            // Reset UI states for new session
             document.getElementById('cif-badge').classList.add('hidden');
             document.getElementById('upload-status').classList.add('hidden');
-            
             renderChatHistory();
             updateSidebarSessions();
             if(window.innerWidth < 768) closeSidebar();
         }
 
         function createNewWorkspace() {
-            // Prevent spamming new workspaces if the current one is already empty
             if(window.chatHistory.length === 0) {
                 if(window.innerWidth < 768) closeSidebar();
                 return;
             }
-
             sessionId = crypto.randomUUID(); 
             window.allSessions[sessionId] = { title: "New Workspace", history: [], updatedAt: Date.now() };
             window.chatHistory = [];
-            
             localStorage.setItem('novarag_session_id', sessionId);
             renderChatHistory();
             updateSidebarSessions();
-            
             document.getElementById('cif-badge').classList.add('hidden');
             document.getElementById('upload-status').classList.add('hidden');
             if(window.innerWidth < 768) closeSidebar();
         }
 
-        function clearAllData() {
-            if(!confirm("Are you sure you want to delete all workspaces? This cannot be undone.")) return;
-            window.allSessions = {};
-            localStorage.removeItem('novarag_sessions');
+        window.deleteWorkspace = function(id) {
+            if(!confirm("Are you sure you want to delete this workspace?")) return;
+            delete window.allSessions[id];
             
-            if(window.saveToCloud) window.saveToCloud({}); // Wipe cloud too
-            
-            createNewWorkspace();
-            toggleSettings();
-            showToast("All Workspaces Wiped Securely.", "success");
+            if(id === sessionId) {
+                createNewWorkspace();
+            } else {
+                localStorage.setItem('novarag_sessions', JSON.stringify(window.allSessions));
+                updateSidebarSessions();
+            }
+            if(window.saveToCloud) window.saveToCloud(window.allSessions);
+            showToast("Workspace deleted.", "success");
         }
 
         // --- UTILITIES & API CALLS ---
