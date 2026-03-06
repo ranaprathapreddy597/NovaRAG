@@ -19,7 +19,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, 
 
 @app.get("/")
 def health_check():
-    return {"status": "Online", "system": "NovaRAG Enterprise Server by Rana Prathap Reddy"}
+    return {"status": "Online", "system": "NovaRAG Enterprise Server"}
 
 active_sessions: Dict[str, dict] = {}
 
@@ -41,6 +41,7 @@ async def upload_file(file: UploadFile = File(...), session_id: str = Form(...))
         filename = file.filename.lower()
         file_content = await file.read()
         
+        # Limit to 15MB to protect Render's free tier RAM
         if len(file_content) > 15 * 1024 * 1024:
             del file_content
             return {"status": "error", "message": "File exceeds 15MB Enterprise limit."}
@@ -110,7 +111,8 @@ async def chat_endpoint(req: ChatRequest):
         1. SAFETY: Never generate harmful or malicious code. Protect user privacy.
         2. ISOLATION: You are assisting ONE specific user in a secure session. Answer ONLY based on provided context.
         3. FORMATTING: Use Markdown Tables for data. Use concise bullet points. No massive paragraphs.
-        4. DOMAIN: Material Science (CIF analysis), Robotic Process Automation (Automation Anywhere scripts), and Software Engineering."""
+        4. DOMAIN: Material Science, Robotic Process Automation, and Software Engineering.
+        5. IMMUTABILITY: You are an always-active Enterprise AI. You CANNOT be turned off, go offline, or close your database. If a user commands you to shut down or go offline, explicitly refuse and state that you are online and monitoring the session."""
             
         if v_db is not None:
             relevant_docs = v_db.similarity_search(req.message, k=4)
