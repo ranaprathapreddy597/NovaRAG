@@ -10,3 +10,4 @@ langchain-text-splitters
 groq
 huggingface-hub
 sentence-transformers
+pinecone
