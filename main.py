@@ -12,7 +12,7 @@ import PyPDF2
 from duckduckgo_search import DDGS
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from groq import Groq
 from pinecone import Pinecone
 
@@ -33,8 +33,7 @@ def get_groq_client():
     return Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 def get_cloud_embeddings():
-    return HuggingFaceInferenceAPIEmbeddings(
-        api_key=os.environ.get("HF_TOKEN"),
+    return HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
