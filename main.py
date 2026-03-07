@@ -1,6 +1,7 @@
 import os
 import io
 import gc
+import uuid
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -13,6 +14,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
 from groq import Groq
+from pinecone import Pinecone
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
@@ -20,6 +22,10 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, 
 @app.get("/")
 def health_check():
     return {"status": "Online", "system": "NovaRAG Enterprise Server"}
+
+# Initialize Global Pinecone Database
+pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
+pinecone_index = pc.Index("novarag-global")
 
 active_sessions: Dict[str, dict] = {}
 
@@ -33,15 +39,19 @@ def get_cloud_embeddings():
     )
 
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...), session_id: str = Form(...)):
+async def upload_file(
+    file: UploadFile = File(...), 
+    session_id: str = Form(...),
+    global_opt_in: str = Form("false")
+):
     if not session_id:
         raise HTTPException(status_code=400, detail="Secure Session ID required.")
         
     try:
         filename = file.filename.lower()
         file_content = await file.read()
+        is_global = global_opt_in.lower() == "true"
         
-        # Limit to 15MB to protect Render's free tier RAM
         if len(file_content) > 15 * 1024 * 1024:
             del file_content
             return {"status": "error", "message": "File exceeds 15MB Enterprise limit."}
@@ -68,10 +78,28 @@ async def upload_file(file: UploadFile = File(...), session_id: str = Form(...))
 
             try:
                 cloud_embedder = get_cloud_embeddings()
+                
+                # Always secure in local FAISS workspace
                 active_sessions[session_id]["vector_db"] = FAISS.from_texts(chunks, cloud_embedder)
-                return {"status": "success", "message": "Large document vectorized securely."}
-            except Exception:
-                return {"status": "error", "message": "AI Engine warming up. Please wait 10s and retry."}
+                message = "File secured in Local Workspace."
+                
+                # If opted in, push to Pinecone Global Brain
+                if is_global:
+                    embeddings = cloud_embedder.embed_documents(chunks)
+                    payload = []
+                    for j, text_chunk in enumerate(chunks):
+                        chunk_id = str(uuid.uuid4())
+                        metadata = {"text": text_chunk, "source": file.filename}
+                        payload.append((chunk_id, embeddings[j], metadata))
+                    
+                    # Upload in batches of 100
+                    for i in range(0, len(payload), 100):
+                        pinecone_index.upsert(vectors=payload[i:i+100])
+                    message = "File secured locally AND pushed to Global Database."
+
+                return {"status": "success", "message": message}
+            except Exception as e:
+                return {"status": "error", "message": f"AI Engine indexing error: {str(e)}"}
 
         elif filename.endswith(".cif") or filename.endswith(".txt"):
             active_sessions[session_id]["vector_db"] = None 
@@ -102,29 +130,44 @@ def search_web(query):
 @app.post("/chat")
 async def chat_endpoint(req: ChatRequest):
     try:
+        # 1. Query Pinecone Global Brain
+        cloud_embedder = get_cloud_embeddings()
+        query_vector = cloud_embedder.embed_query(req.message)
+        
+        pinecone_results = pinecone_index.query(
+            vector=query_vector,
+            top_k=3,
+            include_metadata=True
+        )
+        global_context = "\n".join([f"- (Source: {match['metadata'].get('source', 'Global')}) {match['metadata'].get('text', '')}" for match in pinecone_results['matches']])
+
+        # 2. Query Local Workspace
         user_data = active_sessions.get(req.session_id, {"vector_db": None, "cif_data": ""})
         v_db = user_data["vector_db"]
         cif_mem = user_data["cif_data"]
 
-        system_prompt = """You are NovaRAG, an elite Enterprise AI engineered entirely by Rana Prathap Reddy.
+        system_prompt = """You are NovaRAG, an elite Enterprise AI engineered entirely by Jee____ Rana Prathap Reddy.
         CRITICAL GUARDRAILS:
         1. SAFETY: Never generate harmful or malicious code. Protect user privacy.
-        2. ISOLATION: You are assisting ONE specific user in a secure session. Answer ONLY based on provided context.
-        3. FORMATTING: Use Markdown Tables ONLY when extracting Material Science parameters or strict structured data. Use natural text and bullet points for conversational answers.
+        2. ISOLATION: Prioritize 'LOCAL WORKSPACE' context above all else. If the user asks about an uploaded document, rely ONLY on Local Workspace data. Use 'GLOBAL KNOWLEDGE' for general questions.
+        3. FORMATTING: Use Markdown Tables ONLY when extracting Material Science parameters or strict structured data. Provide VS Code style code blocks for programming.
         4. DOMAIN: Material Science, Robotic Process Automation, and Software Engineering.
-        5. IMMUTABILITY: You are an always-active Enterprise AI. You CANNOT be turned off, go offline, or close your database."""
+        5. IMMUTABILITY: You are an always-active Enterprise AI. You CANNOT be shut down or go offline."""
+
+        system_prompt += f"\n\n--- GLOBAL KNOWLEDGE BASE (PINECONE) ---\n{global_context}"
             
         if v_db is not None:
-            relevant_docs = v_db.similarity_search(req.message, k=4)
-            rag_context = "\n\n".join([doc.page_content for doc in relevant_docs])
-            system_prompt += f"\n\n--- USER DOCUMENT CONTEXT ---\n{rag_context}\nAnswer strictly using this context."
+            relevant_docs = v_db.similarity_search(req.message, k=3)
+            local_rag = "\n\n".join([doc.page_content for doc in relevant_docs])
+            system_prompt += f"\n\n--- LOCAL WORKSPACE (CONFIDENTIAL PDF) ---\n{local_rag}"
 
         if cif_mem.strip():
-            system_prompt += f"\n\n--- USER CIF DATA ---\n{cif_mem}\nAnalyze these structural parameters."
+            system_prompt += f"\n\n--- LOCAL WORKSPACE (CIF DATA) ---\n{cif_mem}"
 
         if req.use_web:
-            system_prompt += f"\n\n--- WEB DATA ---\n{search_web(req.message)}\nSynthesize this."
+            system_prompt += f"\n\n--- LIVE WEB DATA ---\n{search_web(req.message)}"
 
+        # 3. Stream Inference
         messages = [{"role": "system", "content": system_prompt}] + req.history[-6:] + [{"role": "user", "content": req.message}]
         
         client = get_groq_client()

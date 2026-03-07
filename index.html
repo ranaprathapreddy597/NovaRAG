@@ -6,6 +6,7 @@
     
     <title>NovaRAG Enterprise AI</title>
     <meta name="theme-color" content="#09090b">
+    
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" href="/logo.png" type="image/png">
 
@@ -18,18 +19,36 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
 
     <script>
-        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { bgBase: '#09090b', bgPanel: '#18181b', bgInput: '#27272a' } } } }
+        tailwind.config = { 
+            theme: { 
+                extend: { 
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }, 
+                    colors: { bgBase: '#09090b', bgPanel: '#18181b', bgInput: '#27272a' } 
+                } 
+            } 
+        }
     </script>
+
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #09090b; color: #e4e4e7; overscroll-behavior-y: none; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #09090b; 
+            color: #e4e4e7; 
+            overscroll-behavior-y: none; 
+        }
+        
+        /* Scrollbar */
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
         
+        /* Markdown Styling */
         .markdown { font-size: 0.95rem; line-height: 1.7; width: 100%; word-break: break-word; }
         .markdown h1, .markdown h2, .markdown h3 { color: #fff; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.75rem; }
         .markdown p { margin-bottom: 1rem; color: #d4d4d8; }
         .markdown ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1.25rem; color: #d4d4d8; }
+        
+        /* Markdown Tables */
         .markdown table { width: 100%; border-collapse: collapse; text-align: left; background: #18181b; margin-bottom: 1.5rem; border-radius: 0.5rem; border: 1px solid #27272a;}
         .markdown th, .markdown td { border-bottom: 1px solid #27272a; padding: 0.75rem 1rem; font-size: 0.85rem; }
         .markdown th { background-color: #27272a; color: #fff; font-weight: 500;}
@@ -38,17 +57,26 @@
         .markdown pre { background-color: #0d1117; padding: 1rem; border-radius: 0 0 0.5rem 0.5rem; overflow-x: auto; margin-bottom: 1.5rem; border: 1px solid #3f3f46; border-top: none; font-size: 0.85rem; }
         .markdown code:not(pre code) { background-color: #27272a; padding: 0.2rem 0.4rem; border-radius: 0.3rem; font-family: monospace; font-size: 0.85em; color: #fff; }
         
+        /* Animations */
         @keyframes slideIn { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .animate-in { animation: slideIn 0.3s ease-out forwards; }
+        
         .blinking-cursor { display: inline-block; width: 6px; height: 16px; background-color: #fff; animation: blink 1s step-end infinite; margin-left: 4px; vertical-align: text-bottom; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        
+        /* Input Area Styling */
         .premium-input-container { background-color: #27272a; border: 1px solid #3f3f46; border-radius: 1.5rem; transition: all 0.2s ease; }
         .premium-input-container:focus-within { border-color: #71717a; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        
+        /* Custom Toggle Switch for Global Database */
+        .toggle-checkbox:checked { right: 0; border-color: #10b981; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #10b981; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden antialiased">
 
     <div id="toast-container" class="fixed top-5 left-1/2 transform -translate-x-1/2 md:left-auto md:right-5 md:translate-x-0 z-[100] flex flex-col gap-3 w-[90%] md:w-auto"></div>
+    
     <div id="sidebar-backdrop" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-30 hidden transition-opacity" onclick="closeSidebar()"></div>
 
     <div id="app-sidebar" class="w-[280px] bg-bgPanel border-r border-[#27272a] flex flex-col z-40 fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl md:shadow-none">
@@ -120,12 +148,14 @@
         </div>
 
         <div id="chat-box" class="flex-1 overflow-y-auto p-3 md:p-8 relative scroll-smooth w-full">
+            
             <div id="welcome-screen" class="absolute inset-0 flex flex-col items-center justify-center text-center w-full px-4 pb-20 transition-opacity duration-300">
                 <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-[#18181b] flex items-center justify-center mb-6 border border-[#27272a] shadow-lg">
                     <i class="fa-solid fa-bolt text-xl md:text-2xl text-white"></i>
                 </div>
                 <h2 class="text-xl md:text-2xl font-semibold mb-3 text-white">What shall we build today?</h2>
                 <p class="text-gray-400 text-xs md:text-sm mb-8 max-w-md">Upload confidential documents to your secure workspace, or generate code.</p>
+                
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 w-full max-w-2xl">
                     <button onclick="document.getElementById('chat-input').value='Analyze this material structure and output a parameter table:'; document.getElementById('chat-input').focus();" class="bg-[#18181b] hover:bg-[#27272a] p-4 md:p-5 rounded-2xl text-left border border-[#27272a] transition-all group">
                         <i class="fa-solid fa-atom text-gray-500 mb-2 md:mb-3 text-base md:text-lg group-hover:text-white transition-colors"></i>
@@ -139,14 +169,27 @@
                     </button>
                 </div>
             </div>
+            
             <div id="chat-content" class="relative z-10 w-full flex flex-col pb-6 max-w-3xl mx-auto"></div>
         </div>
 
         <div class="px-3 md:px-4 pb-4 md:pb-6 pt-2 bg-gradient-to-t from-[#09090b] via-[#09090b] to-transparent flex-shrink-0 w-full relative z-20">
             <div class="max-w-3xl mx-auto relative">
+                
+                <div class="flex justify-end items-center px-2 mb-2">
+                    <label for="global-opt-in" class="flex items-center cursor-pointer group tooltip-trigger">
+                        <span class="text-[10px] md:text-xs font-medium text-gray-500 mr-2 group-hover:text-gray-300 transition-colors">Contribute to Global Database</span>
+                        <div class="relative inline-block w-8 h-4 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" name="toggle" id="global-opt-in" class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 border-[#27272a] appearance-none cursor-pointer transition-all duration-300 z-10"/>
+                            <label for="global-opt-in" class="toggle-label block overflow-hidden h-4 rounded-full bg-[#27272a] cursor-pointer border border-[#3f3f46] transition-colors duration-300"></label>
+                        </div>
+                    </label>
+                </div>
+
                 <div id="status-bar" class="absolute -top-6 left-2 text-[10px] md:text-[11px] font-medium text-gray-400 hidden flex items-center gap-2">
                     <i class="fa-solid fa-circle-notch fa-spin"></i> <span id="status-text">Thinking...</span>
                 </div>
+                
                 <div class="premium-input-container flex items-end p-1.5 md:p-2 px-2 md:px-3 gap-1 md:gap-2">
                     <div class="flex items-center gap-0.5 md:gap-1 pb-1 shrink-0">
                         <label class="cursor-pointer text-gray-400 hover:text-white hover:bg-[#3f3f46] w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center transition-all">
@@ -157,13 +200,16 @@
                             <i class="fa-solid fa-globe text-[14px]"></i>
                         </button>
                     </div>
+                    
                     <textarea id="chat-input" rows="1" placeholder="Message NovaRAG..." class="flex-1 bg-transparent border-none focus:outline-none text-white placeholder-gray-500 resize-none text-[14px] md:text-[15px] py-2 md:py-2.5 leading-relaxed" oninput="this.style.height = '';this.style.height = Math.min(this.scrollHeight, 150) + 'px'"></textarea>
+                    
                     <div class="pb-1 pl-1 shrink-0">
                         <button onclick="sendMessage()" class="bg-white text-black hover:bg-gray-200 w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center transition-transform hover:scale-105 shadow-md">
                             <i class="fa-solid fa-arrow-up text-[14px]"></i>
                         </button>
                     </div>
                 </div>
+                
                 <div class="flex justify-between items-center mt-2 px-1 md:px-2">
                     <span id="upload-status" class="text-[9px] md:text-[10px] font-medium hidden text-emerald-400 tracking-wide"></span>
                     <p class="text-[9px] md:text-[10px] text-gray-500 tracking-wide flex-1 text-center">NovaRAG can make mistakes. Verify critical code.</p>
@@ -230,8 +276,8 @@
                     });
                 } else {
                     signInWithPopup(auth, provider).catch(error => {
-                        console.error(error);
-                        showToast(`Auth Error. Check Console.`, "error");
+                        console.error("Auth Error:", error);
+                        showToast("Authentication Failed.", "error");
                     });
                 }
             });
@@ -246,6 +292,7 @@
                     document.getElementById('sync-text').innerText = "Firebase Cloud Sync";
                     document.getElementById('sync-icon').className = "fa-solid fa-cloud text-emerald-400";
 
+                    // Load User's Sessions from Firestore
                     const docRef = doc(db, "users", user.uid);
                     const docSnap = await getDoc(docRef);
                     if (docSnap.exists() && docSnap.data().sessions) {
@@ -254,10 +301,11 @@
                         if(sortedIds.length > 0) {
                             window.loadSession(sortedIds[0]);
                         } else {
-                            createNewWorkspace();
+                            window.createNewWorkspace();
                         }
                     } else {
-                        window.saveToCloud(window.allSessions);
+                        // First login, save local to cloud
+                        if(window.saveToCloud) window.saveToCloud(window.allSessions);
                     }
                 } else {
                     window.currentUserUID = null;
@@ -273,25 +321,47 @@
                     await setDoc(doc(db, "users", window.currentUserUID), { sessions: sessionsObj }, { merge: true });
                 }
             };
-        } catch(e) { console.warn("Firebase not configured correctly."); }
+        } catch(e) { 
+            console.warn("Firebase is not configured correctly. Check your API keys."); 
+        }
     </script>
 
     <script>
+        // 🔴 Ensure this points to your Render backend 🔴
         const API_URL = "https://novarag-api.onrender.com"; 
 
-        function openSidebar() { document.getElementById('app-sidebar').classList.remove('-translate-x-full'); document.getElementById('sidebar-backdrop').classList.remove('hidden'); }
-        function closeSidebar() { document.getElementById('app-sidebar').classList.add('-translate-x-full'); document.getElementById('sidebar-backdrop').classList.add('hidden'); }
-        function toggleSettings() { document.getElementById('settings-modal').classList.toggle('hidden'); if(window.innerWidth < 768) closeSidebar(); }
+        // UI Toggles
+        function openSidebar() { 
+            document.getElementById('app-sidebar').classList.remove('-translate-x-full'); 
+            document.getElementById('sidebar-backdrop').classList.remove('hidden'); 
+        }
+        function closeSidebar() { 
+            document.getElementById('app-sidebar').classList.add('-translate-x-full'); 
+            document.getElementById('sidebar-backdrop').classList.add('hidden'); 
+        }
+        function toggleSettings() { 
+            document.getElementById('settings-modal').classList.toggle('hidden'); 
+            if(window.innerWidth < 768) closeSidebar(); 
+        }
         function toggleWebSearch() {
             useWebSearch = !useWebSearch;
             const btn = document.getElementById('web-btn');
-            if(useWebSearch) btn.classList.replace('text-gray-400', 'text-white'); else btn.classList.replace('text-white', 'text-gray-400');
+            if(useWebSearch) {
+                btn.classList.replace('text-gray-400', 'text-white'); 
+            } else {
+                btn.classList.replace('text-white', 'text-gray-400');
+            }
         }
 
-        // --- MARKDOWN & SYNTAX HIGHLIGHTING (VS Code Style + Copy Button) ---
+        // --- MARKDOWN & SYNTAX HIGHLIGHTING ENGINE ---
         const renderer = new marked.Renderer();
-        renderer.table = function(header, body) { return `<div class="table-wrapper"><table><thead>${header}</thead><tbody>${body}</tbody></table></div>`; };
         
+        // Custom Table Wrapper
+        renderer.table = function(header, body) { 
+            return `<div class="table-wrapper"><table><thead>${header}</thead><tbody>${body}</tbody></table></div>`; 
+        };
+        
+        // Custom Code Block Wrapper with "Copy Code" Button
         renderer.code = function(code, language) {
             const validLang = hljs.getLanguage(language) ? language : 'plaintext';
             const highlighted = hljs.highlight(code, { language: validLang }).value;
@@ -300,7 +370,9 @@
                 <div class="relative group mb-4 font-sans">
                     <div class="flex items-center justify-between bg-[#27272a] text-gray-400 px-3 py-1.5 text-[11px] uppercase tracking-wider font-semibold rounded-t-md border border-[#3f3f46] border-b-0">
                         <span>${validLang}</span>
-                        <button onclick="copyCode('${codeId}')" class="hover:text-white transition-colors flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy code</button>
+                        <button onclick="copyCode('${codeId}')" class="hover:text-white transition-colors flex items-center gap-1.5">
+                            <i class="fa-regular fa-copy"></i> Copy code
+                        </button>
                     </div>
                     <pre class="!mt-0 !rounded-t-none"><code id="${codeId}" class="hljs ${validLang}">${highlighted}</code></pre>
                 </div>
@@ -308,13 +380,13 @@
         };
         marked.setOptions({ renderer: renderer });
 
-        window.copyCode = function(id) {
+        window.copyCode = function(id) { 
             const codeText = document.getElementById(id).innerText;
-            navigator.clipboard.writeText(codeText);
-            showToast("Code copied to clipboard!", "success");
+            navigator.clipboard.writeText(codeText); 
+            showToast("Code copied to clipboard!", "success"); 
         }
 
-        // --- SESSION MANAGEMENT LOGIC ---
+        // --- MULTI-WORKSPACE SESSION MANAGEMENT ---
         window.allSessions = JSON.parse(localStorage.getItem('novarag_sessions')) || {};
         let sessionId = localStorage.getItem('novarag_session_id') || crypto.randomUUID();
         
@@ -323,26 +395,30 @@
         }
         window.chatHistory = window.allSessions[sessionId].history;
 
-        let useWebSearch = false; let activeTemp = 0.2;
-        const chatBox = document.getElementById('chat-box'); const chatInput = document.getElementById('chat-input');
+        let useWebSearch = false; 
+        let activeTemp = 0.2;
+        const chatBox = document.getElementById('chat-box'); 
+        const chatInput = document.getElementById('chat-input');
 
-        window.onload = () => {
-            renderChatHistory();
-            updateSidebarSessions();
+        window.onload = () => { 
+            renderChatHistory(); 
+            updateSidebarSessions(); 
         }
 
         function renderChatHistory() {
             document.getElementById('chat-content').innerHTML = '';
             if(window.chatHistory.length > 0) {
                 document.getElementById('welcome-screen').classList.add('hidden');
-                window.chatHistory.forEach(msg => window.addMessage(msg.content, msg.role === 'user' ? 'user' : 'bot', true));
+                window.chatHistory.forEach(msg => {
+                    window.addMessage(msg.content, msg.role === 'user' ? 'user' : 'bot', true);
+                });
             } else {
                 document.getElementById('welcome-screen').classList.remove('hidden');
             }
         }
 
         function saveLocalData() { 
-            // SMART TITLE GENERATOR: Removes generic words, capitalizes the subject.
+            // Smart Title Generator based on the first prompt
             if(window.chatHistory.length > 0 && window.allSessions[sessionId].title === "New Workspace") {
                 let firstMsg = window.chatHistory.find(m => m.role === 'user');
                 if(firstMsg) {
@@ -351,67 +427,76 @@
                     window.allSessions[sessionId].title = cleanTitle.substring(0, 22) + (cleanTitle.length > 22 ? "..." : "");
                 }
             }
-            window.allSessions[sessionId].history = window.chatHistory;
+            window.allSessions[sessionId].history = window.chatHistory; 
             window.allSessions[sessionId].updatedAt = Date.now();
             
             localStorage.setItem('novarag_sessions', JSON.stringify(window.allSessions)); 
             localStorage.setItem('novarag_session_id', sessionId);
-            updateSidebarSessions();
+            
+            updateSidebarSessions(); 
             if(window.saveToCloud) window.saveToCloud(window.allSessions); 
         }
 
         function updateSidebarSessions() {
-            const list = document.getElementById('sessions-list');
+            const list = document.getElementById('sessions-list'); 
             list.innerHTML = '';
             
             const sortedIds = Object.keys(window.allSessions).sort((a,b) => window.allSessions[b].updatedAt - window.allSessions[a].updatedAt);
             
             sortedIds.forEach(id => {
+                // Don't show empty ghost sessions in sidebar unless active
                 if(window.allSessions[id].history.length === 0 && id !== sessionId) return; 
                 
                 const wrapper = document.createElement('div');
                 wrapper.className = `w-full flex items-center justify-between px-3 py-2.5 rounded-lg mb-1 group transition-all cursor-pointer ${id === sessionId ? 'bg-[#27272a] text-white border border-[#3f3f46]' : 'text-gray-400 hover:bg-[#18181b] hover:text-gray-200'}`;
                 
-                const titleBtn = document.createElement('div');
+                const titleBtn = document.createElement('div'); 
                 titleBtn.className = "flex-1 truncate text-[13px] font-medium flex items-center gap-2";
                 titleBtn.innerHTML = `<i class="fa-regular fa-message text-[11px] opacity-70"></i> <span class="truncate">${window.allSessions[id].title}</span>`;
                 titleBtn.onclick = () => window.loadSession(id);
                 
-                // DELETE WORKSPACE BUTTON
-                const delBtn = document.createElement('button');
+                const delBtn = document.createElement('button'); 
                 delBtn.className = "opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all px-1";
-                delBtn.innerHTML = `<i class="fa-regular fa-trash-can"></i>`;
-                delBtn.onclick = (e) => { e.stopPropagation(); window.deleteWorkspace(id); };
+                delBtn.innerHTML = `<i class="fa-regular fa-trash-can"></i>`; 
+                delBtn.onclick = (e) => { 
+                    e.stopPropagation(); 
+                    window.deleteWorkspace(id); 
+                };
                 
-                wrapper.appendChild(titleBtn);
-                wrapper.appendChild(delBtn);
+                wrapper.appendChild(titleBtn); 
+                wrapper.appendChild(delBtn); 
                 list.appendChild(wrapper);
             });
         }
 
         window.loadSession = function(id) {
-            sessionId = id;
+            sessionId = id; 
             localStorage.setItem('novarag_session_id', sessionId);
             window.chatHistory = window.allSessions[sessionId].history || [];
-            document.getElementById('cif-badge').classList.add('hidden');
+            
+            document.getElementById('cif-badge').classList.add('hidden'); 
             document.getElementById('upload-status').classList.add('hidden');
-            renderChatHistory();
-            updateSidebarSessions();
+            
+            renderChatHistory(); 
+            updateSidebarSessions(); 
             if(window.innerWidth < 768) closeSidebar();
         }
 
-        function createNewWorkspace() {
-            if(window.chatHistory.length === 0) {
-                if(window.innerWidth < 768) closeSidebar();
-                return;
+        window.createNewWorkspace = function() {
+            if(window.chatHistory.length === 0) { 
+                if(window.innerWidth < 768) closeSidebar(); 
+                return; 
             }
+            
             sessionId = crypto.randomUUID(); 
             window.allSessions[sessionId] = { title: "New Workspace", history: [], updatedAt: Date.now() };
-            window.chatHistory = [];
+            window.chatHistory = []; 
             localStorage.setItem('novarag_session_id', sessionId);
-            renderChatHistory();
+            
+            renderChatHistory(); 
             updateSidebarSessions();
-            document.getElementById('cif-badge').classList.add('hidden');
+            
+            document.getElementById('cif-badge').classList.add('hidden'); 
             document.getElementById('upload-status').classList.add('hidden');
             if(window.innerWidth < 768) closeSidebar();
         }
@@ -421,79 +506,144 @@
             delete window.allSessions[id];
             
             if(id === sessionId) {
-                createNewWorkspace();
-            } else {
-                localStorage.setItem('novarag_sessions', JSON.stringify(window.allSessions));
-                updateSidebarSessions();
+                window.createNewWorkspace(); 
+            } else { 
+                localStorage.setItem('novarag_sessions', JSON.stringify(window.allSessions)); 
+                updateSidebarSessions(); 
             }
+            
             if(window.saveToCloud) window.saveToCloud(window.allSessions);
             showToast("Workspace deleted.", "success");
         }
 
-        // --- UTILITIES & API CALLS ---
         function showToast(msg, type='success') {
             const t = document.createElement('div');
-            t.className = `bg-[#18181b] border-l-2 ${type==='success'?'border-emerald-500':'border-red-500'} shadow-2xl p-3 md:p-3.5 rounded-lg flex items-center gap-3 animate-in w-full md:w-auto md:min-w-[250px]`;
+            t.className = `bg-[#18181b] border-l-2 ${type==='success'?'border-emerald-500':'border-red-500'} shadow-2xl p-3 md:p-3.5 rounded-lg flex items-center gap-3 animate-in w-full md:w-auto md:min-w-[250px] z-50`;
             t.innerHTML = `<span class="text-[13px] md:text-sm font-medium text-gray-200">${msg}</span>`;
             document.getElementById('toast-container').appendChild(t);
-            setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 3500);
+            setTimeout(() => { 
+                t.style.opacity = '0'; 
+                setTimeout(() => t.remove(), 400); 
+            }, 3500);
         }
 
         function exportChat() {
-            if(window.chatHistory.length === 0) { showToast('No data to export.', 'warning'); return; }
+            if(window.chatHistory.length === 0) { 
+                showToast('No data to export.', 'warning'); 
+                return; 
+            }
             let exportText = `# ${window.allSessions[sessionId].title}\n\n---\n\n`;
-            window.chatHistory.forEach(msg => { exportText += `### ${msg.role === 'user' ? 'User' : 'NovaRAG'}\n${msg.content}\n\n---\n\n`; });
+            window.chatHistory.forEach(msg => { 
+                exportText += `### ${msg.role === 'user' ? 'User' : 'NovaRAG'}\n${msg.content}\n\n---\n\n`; 
+            });
             const blob = new Blob([exportText], { type: 'text/markdown' });
             const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url; a.download = `${window.allSessions[sessionId].title.replace(/\s+/g, '_')}.md`;
-            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+            const a = document.createElement('a'); 
+            a.href = url; 
+            a.download = `${window.allSessions[sessionId].title.replace(/\s+/g, '_')}.md`;
+            document.body.appendChild(a); 
+            a.click(); 
+            document.body.removeChild(a); 
+            URL.revokeObjectURL(url);
         }
 
+        // Handle Enter Key for Input
         chatInput.addEventListener('keydown', (e) => { 
-            if (e.key === 'Enter' && !e.shiftKey && window.innerWidth > 768) { e.preventDefault(); sendMessage(); } 
+            if (e.key === 'Enter' && !e.shiftKey && window.innerWidth > 768) { 
+                e.preventDefault(); 
+                sendMessage(); 
+            } 
         });
 
+        // --- FILE UPLOAD (WITH DUAL-RAG GLOBAL OPT-IN) ---
         document.getElementById('file-upload').addEventListener('change', async (e) => {
-            const file = e.target.files[0]; if (!file) return;
-            if (file.size > 15 * 1024 * 1024) { showToast("Max 15MB allowed.", "warning"); e.target.value = ''; return; }
+            const file = e.target.files[0]; 
+            if (!file) return;
+            
+            if (file.size > 15 * 1024 * 1024) { 
+                showToast("Max 15MB allowed.", "warning"); 
+                e.target.value = ''; 
+                return; 
+            }
 
             const status = document.getElementById('upload-status');
-            status.classList.remove('hidden'); status.innerText = "Encrypting & Indexing...";
-            const fd = new FormData(); fd.append("file", file); fd.append("session_id", sessionId);
+            status.classList.remove('hidden'); 
+            status.innerText = "Encrypting & Indexing...";
+            
+            const fd = new FormData(); 
+            fd.append("file", file); 
+            fd.append("session_id", sessionId);
+            
+            // Check if user allowed pushing to Global Database
+            const isGlobalOptIn = document.getElementById('global-opt-in').checked;
+            fd.append("global_opt_in", isGlobalOptIn);
 
             try {
-                const res = await fetch(`${API_URL}/upload`, { method: 'POST', body: fd });
+                const res = await fetch(`${API_URL}/upload`, { 
+                    method: 'POST', 
+                    body: fd 
+                });
                 const data = await res.json();
+                
                 if(data.status === "success") {
-                    status.innerText = `✓ File secured`; showToast(data.message, 'success');
-                    if(file.name.endsWith('.pdf') || file.name.endsWith('.cif')) document.getElementById('cif-badge').classList.remove('hidden');
-                } else throw new Error(data.message);
-            } catch (err) { status.innerText = "Upload failed."; showToast(err.message, 'warning'); }
+                    status.innerText = isGlobalOptIn ? `✓ Sent to Global DB` : `✓ Secured Locally`; 
+                    showToast(data.message, 'success');
+                    if(file.name.endsWith('.pdf') || file.name.endsWith('.cif')) {
+                        document.getElementById('cif-badge').classList.remove('hidden');
+                    }
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (err) { 
+                status.innerText = "Upload failed."; 
+                showToast(err.message, 'error'); 
+            }
             e.target.value = '';
         });
 
+        // --- INFERENCE COMMUNICATION ---
         async function sendMessage() {
-            const text = chatInput.value.trim(); if (!text) return;
+            const text = chatInput.value.trim(); 
+            if (!text) return;
+            
             document.getElementById('welcome-screen').classList.add('hidden');
-            window.addMessage(text, 'user'); chatInput.value = ''; chatInput.style.height = 'auto';
+            window.addMessage(text, 'user'); 
+            
+            chatInput.value = ''; 
+            chatInput.style.height = 'auto';
             document.getElementById('status-bar').classList.remove('hidden');
+            
             const botBubble = window.addMessage('<span class="blinking-cursor"></span>', 'bot');
             let botText = "";
 
             try {
                 const response = await fetch(`${API_URL}/chat`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session_id: sessionId, message: text, history: window.chatHistory, use_web: useWebSearch, temperature: activeTemp })
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        session_id: sessionId, 
+                        message: text, 
+                        history: window.chatHistory, 
+                        use_web: useWebSearch, 
+                        temperature: activeTemp 
+                    })
                 });
+                
                 if (!response.ok) throw new Error("Server error.");
 
-                const reader = response.body.getReader(); const decoder = new TextDecoder();
+                const reader = response.body.getReader(); 
+                const decoder = new TextDecoder();
+                
                 while (true) {
-                    const { done, value } = await reader.read(); if (done) break;
+                    const { done, value } = await reader.read(); 
+                    if (done) break;
+                    
                     const lines = decoder.decode(value).split('\n\n');
                     for (let line of lines) {
                         if (line.startsWith('data: ')) {
-                            let payload = line.replace('data: ', ''); if (payload === '[DONE]') break;
+                            let payload = line.replace('data: ', ''); 
+                            if (payload === '[DONE]') break;
+                            
                             botText += payload.replace(/<br>/g, "\n");
                             botBubble.innerHTML = marked.parse(botText) + '<span class="blinking-cursor"></span>';
                             chatBox.scrollTop = chatBox.scrollHeight;
@@ -503,26 +653,35 @@
                 botBubble.innerHTML = marked.parse(botText);
                 window.chatHistory.push({ role: "user", content: text }, { role: "assistant", content: botText });
                 saveLocalData();
-            } catch (err) { botBubble.innerHTML = `<span class="text-red-400">Network error.</span>`; }
+                
+            } catch (err) { 
+                botBubble.innerHTML = `<span class="text-red-400">Network error. Is the server running?</span>`; 
+            }
+            
             document.getElementById('status-bar').classList.add('hidden');
         }
 
+        // --- UI MESSAGE APPENDER ---
         window.addMessage = function(text, role, isHistoryLoad = false) {
-            const w = document.createElement('div'); 
-            w.className = `flex gap-2 md:gap-4 mb-5 md:mb-6 w-full animate-in ${role === 'user' ? 'justify-end' : 'justify-start'}`;
-            const b = document.createElement('div');
+            const wrapper = document.createElement('div'); 
+            wrapper.className = `flex gap-2 md:gap-4 mb-5 md:mb-6 w-full animate-in ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+            
+            const bubble = document.createElement('div');
             
             if (role === 'user') { 
-                b.className = `max-w-[85%] md:max-w-[75%] bg-[#27272a] text-gray-100 px-4 py-2.5 md:px-5 md:py-3.5 rounded-2xl rounded-tr-sm text-[14px] md:text-[15px] shadow-sm break-words`; 
-                b.innerHTML = text; 
+                bubble.className = `max-w-[85%] md:max-w-[75%] bg-[#27272a] text-gray-100 px-4 py-2.5 md:px-5 md:py-3.5 rounded-2xl rounded-tr-sm text-[14px] md:text-[15px] shadow-sm break-words`; 
+                bubble.innerHTML = text; 
             } else { 
-                w.innerHTML = `<div class="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-black flex items-center justify-center text-black font-bold flex-shrink-0 shadow-sm mt-1 border border-[#3f3f46]"><img src="/logo.png" class="w-full h-full rounded-lg object-cover"></div>`; 
-                b.className = `max-w-[85%] bg-transparent text-[#e4e4e7] markdown pt-0.5 overflow-hidden`; 
-                b.innerHTML = isHistoryLoad ? marked.parse(text) : text; 
+                wrapper.innerHTML = `<div class="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-black flex items-center justify-center text-black font-bold flex-shrink-0 shadow-sm mt-1 border border-[#3f3f46]"><img src="/logo.png" class="w-full h-full rounded-lg object-cover"></div>`; 
+                bubble.className = `max-w-[85%] bg-transparent text-[#e4e4e7] markdown pt-0.5 overflow-hidden w-full`; 
+                bubble.innerHTML = isHistoryLoad ? marked.parse(text) : text; 
             }
-            w.appendChild(b); document.getElementById('chat-content').appendChild(w); 
+            
+            wrapper.appendChild(bubble); 
+            document.getElementById('chat-content').appendChild(wrapper); 
             chatBox.scrollTop = chatBox.scrollHeight; 
-            return b;
+            
+            return bubble;
         }
     </script>
 </body>
