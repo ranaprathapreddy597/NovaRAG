@@ -19,29 +19,50 @@ from groq import Groq
 from pinecone import Pinecone
 
 app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+# Enable CORS for Vercel Frontend
+app.add_middleware(
+    CORSMiddleware, 
+    allow_origins=["*"], 
+    allow_credentials=True, 
+    allow_methods=["*"], 
+    allow_headers=["*"]
+)
 
 @app.get("/")
 def health_check():
     return {"status": "Operational", "tier": "Enterprise Multi-RAG"}
 
-# 1. Initialize Infrastructure securely
+# ============================================================================
+# 🧠 GLOBAL INFRASTRUCTURE (MEMORY OPTIMIZED)
+# These load exactly ONE TIME when the server boots, saving hundreds of MBs of RAM.
+# ============================================================================
+
 try:
     pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
     pinecone_index = pc.Index("novarag-global")
+    print("✅ Global Pinecone Brain connected.")
 except Exception as e:
     print(f"⚠️ Pinecone Warning: {e}")
     pinecone_index = None
 
+print("🧠 Loading Global Embedding Engine into memory (This takes a moment)...")
+try:
+    global_embedder = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    print("✅ Local Embeddings initialized successfully.")
+except Exception as e:
+    print(f"❌ Fatal Error loading embeddings: {e}")
+    global_embedder = None
+
+# Session storage for FAISS RAM databases
 active_sessions: Dict[str, dict] = {}
 
 def get_groq_client():
     return Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
-# 2. Local Embeddings for Zero-Latency / Zero-Cost vectorization
-def get_cloud_embeddings():
-    return HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-
+# ============================================================================
+# 📂 UPLOAD ENDPOINT (Local Workspace + Global Push)
+# ============================================================================
 @app.post("/upload")
 async def upload_file(
     file: UploadFile = File(...), 
@@ -70,29 +91,28 @@ async def upload_file(
                 reader = PyPDF2.PdfReader(pdf_stream)
                 raw_text = "".join([page.extract_text() + "\n" for page in reader.pages if page.extract_text()])
                 del file_content, pdf_stream, reader
-                gc.collect() 
+                gc.collect() # Force aggressive RAM cleanup
             except Exception:
                 return {"status": "error", "message": "Corrupted or encrypted PDF formatting."}
             
-            # Enterprise limit to prevent RAM overflow
+            # Enterprise limit to prevent RAM overflow on massive textbooks
             raw_text = raw_text[:30000] 
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=100)
             chunks = text_splitter.split_text(raw_text)
             del raw_text
-            gc.collect()
+            gc.collect() # Force aggressive RAM cleanup
 
             try:
-                local_embedder = get_cloud_embeddings()
-                
-                # 100% Isolated Local Storage
-                active_sessions[session_id]["vector_db"] = FAISS.from_texts(chunks, local_embedder)
+                # 100% Isolated Local Storage (Uses the pre-loaded global embedder!)
+                active_sessions[session_id]["vector_db"] = FAISS.from_texts(chunks, global_embedder)
                 message = "File secured in highly isolated Local Workspace."
                 
                 # Global Knowledge Contribution
                 if is_global and pinecone_index:
-                    embeddings = local_embedder.embed_documents(chunks)
+                    embeddings = global_embedder.embed_documents(chunks)
                     payload = [(str(uuid.uuid4()), embeddings[j], {"text": chunk, "source": file.filename}) for j, chunk in enumerate(chunks)]
                     
+                    # Batch upsert to prevent network timeouts
                     for i in range(0, len(payload), 100):
                         pinecone_index.upsert(vectors=payload[i:i+100])
                     message = "File secured locally AND successfully pushed to Global Database."
@@ -113,6 +133,9 @@ async def upload_file(
     except Exception as e:
         return {"status": "error", "message": f"Critical Processing Error: {str(e)}"}
 
+# ============================================================================
+# 💬 CHAT ENDPOINT (Parallel Async RAG)
+# ============================================================================
 class ChatRequest(BaseModel):
     session_id: str
     message: str
@@ -120,16 +143,16 @@ class ChatRequest(BaseModel):
     use_web: bool
     temperature: float
 
-# --- ASYNC PARALLEL WORKERS ---
+# Async worker for Global Database
 async def fetch_pinecone(query_vector):
     if not pinecone_index: return ""
     try:
-        # Run synchronous Pinecone code in a background thread so it doesn't block FastAPI
         res = await asyncio.to_thread(pinecone_index.query, vector=query_vector, top_k=3, include_metadata=True)
         return "\n".join([f"- (Source: {m['metadata'].get('source', 'Global')}) {m['metadata'].get('text', '')}" for m in res.get('matches', [])])
     except:
         return ""
 
+# Async worker for Local FAISS
 async def fetch_faiss(v_db, user_query):
     if not v_db: return ""
     try:
@@ -138,6 +161,7 @@ async def fetch_faiss(v_db, user_query):
     except:
         return ""
 
+# Async worker for Live Web Search
 async def fetch_web(query, use_web):
     if not use_web: return ""
     try:
@@ -150,10 +174,9 @@ async def fetch_web(query, use_web):
 async def chat_endpoint(req: ChatRequest):
     try:
         user_query = req.message.strip()
-        local_embedder = get_cloud_embeddings()
         
         # We only vectorize the query ONCE to save compute time
-        query_vector = local_embedder.embed_query(user_query)
+        query_vector = global_embedder.embed_query(user_query)
 
         user_data = active_sessions.get(req.session_id, {"vector_db": None, "cif_data": ""})
         v_db = user_data["vector_db"]
@@ -167,7 +190,7 @@ async def chat_endpoint(req: ChatRequest):
         global_context, local_rag, web_context = await asyncio.gather(global_task, local_task, web_task)
 
         # --- THE MASTER ROUTING PROMPT ---
-        system_prompt = """You are NovaRAG, an elite Enterprise AI engineered entirely by Jee____ Rana Prathap Reddy.
+        system_prompt = """You are NovaRAG, an elite Enterprise AI engineered entirely by Rana Prathap Reddy Jeedipally.
         You are a highly capable intelligence with vast internal knowledge.
 
         CRITICAL EXECUTION PROTOCOL:
@@ -178,7 +201,7 @@ async def chat_endpoint(req: ChatRequest):
            [Tier 3] LIVE WEB DATA (If enabled.)
            [Tier 4] Your internal Llama-3 parameters (Use only to fill gaps, do not hallucinate numbers).
         3. INTEGRITY: If the databases do not contain the specific mathematical or scientific parameter requested, state "I do not have that exact parameter in the provided documents" rather than guessing.
-        4. FORMATTING: Use Markdown Tables for Materials Science parameters, structural coordinates, and RPA mappings. Use VS Code style blocks for programming."""
+        4. FORMATTING: Use Markdown Tables for Materials Science parameters, structural coordinates, and code data. Use VS Code style blocks for programming."""
 
         if global_context.strip():
             system_prompt += f"\n\n--- [Tier 2] GLOBAL KNOWLEDGE BASE ---\n{global_context}"
@@ -192,7 +215,7 @@ async def chat_endpoint(req: ChatRequest):
         if web_context.strip():
             system_prompt += f"\n\n--- [Tier 3] LIVE WEB DATA ---\n{web_context}"
 
-        # 🧠 SLIDING WINDOW MEMORY: Only keep the last 6 messages to prevent context overflow!
+        # 🧠 SLIDING WINDOW MEMORY: Only keep the last 6 messages to prevent LLM context overflow!
         safe_history = req.history[-6:]
         messages = [{"role": "system", "content": system_prompt}] + safe_history + [{"role": "user", "content": user_query}]
         

@@ -1,55 +1,64 @@
-# 🌌 NovaRAG: Enterprise Context-Aware AI
+# 🌌 NovaRAG: Material Science AI Assistant
 
 ![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen)
 ![Python](https://img.shields.io/badge/Python-3.10+-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.103.1-009688)
-![Tailwind](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC)
-![Firebase](https://img.shields.io/badge/Firebase-Auth_%7C_Firestore-FFCA28)
 ![Groq](https://img.shields.io/badge/Groq-Llama_3-f55036)
+![Pinecone](https://img.shields.io/badge/Pinecone-Vector_DB-000000)
+![Firebase](https://img.shields.io/badge/Firebase-Auth_%7C_Cloud_Sync-FFCA28)
 
-**NovaRAG** is a decoupled, multi-tenant Enterprise SaaS application. It utilizes a **Retrieval-Augmented Generation (RAG)** pipeline to allow users to securely chat with their proprietary documents without risking data leakage or AI hallucination. 
+**NovaRAG** is a smart, secure AI chat application built specifically for Material Science researchers. 
 
-Engineered specifically for complex workflows in **Material Science (CIF structure analysis)** and **Robotic Process Automation (Automation Anywhere)**.
+Standard AI models often "guess" or hallucinate numbers when asked about complex scientific data. NovaRAG solves this by letting users upload their own research PDFs and `.cif` (Crystallographic Information) files. The AI reads *only* your documents to give you 100% accurate structural data and lattice parameters.
 
----
-
-## 🚀 Key Features
-
-* **🔒 Secure Document Ingestion (RAG):** Upload dense PDFs, `.txt`, or `.cif` files (up to 15MB). The system chunks, vectorizes, and queries strictly against your document. 
-* **⚡ Ultra-Low Latency Inference:** Powered by **Groq's LPUs** (Language Processing Units) and Llama-3, providing near-instant text streaming.
-* **🧠 Multi-Tenant Memory Isolation:** Uses an in-memory **FAISS** vector database tied to secure session IDs. User A cannot access User B's structural data.
-* **🔄 Cloud Workspace Sync:** Integrated with **Google Firebase**. Users can log in via OAuth, manage multiple smart-titled workspaces, and sync chat histories across devices.
-* **📱 Progressive Web App (PWA):** Fully responsive, dark-mode user interface designed with Tailwind CSS. Installable natively on mobile devices.
-* **🛡️ Immutability Guardrails:** Hard-coded system constraints prevent jailbreaks, prompt injection, and hallucinated data extraction.
+🔗 **[Live Production Deployment](https://nova-rag.vercel.app)** *(Login via Google to access secure workspaces)*
 
 ---
 
-## 🏗️ System Architecture
+## ✨ What It Does
 
-NovaRAG operates on a decoupled Client-Server architecture to optimize heavy machine learning workloads:
-
-1.  **Frontend (Client Edge):** Built with Vanilla JavaScript and Tailwind CSS. Hosted on Vercel for global edge caching. Handles OAuth, markdown rendering, syntax highlighting, and state management.
-2.  **Backend (Inference Server):** A Python **FastAPI** REST engine hosted on Render. Handles heavy file processing and API routing.
-3.  **Data Pipeline:** * **PyPDF2** for raw text extraction.
-    * **LangChain** for semantic recursive text splitting.
-    * **Hugging Face (`all-MiniLM-L6-v2`)** for generating mathematical text embeddings.
-4.  **Database:** **Firestore (NoSQL)** for persistent chat history and **FAISS** for transient, session-based vector storage.
+* **Strictly Accurate Answers:** Upload dense scientific PDFs or `.cif` files. The AI extracts the exact numbers and formulas into clean tables without making things up.
+* **Global vs. Local Knowledge:** The app uses a "Dual-Brain" approach. It has a global database filled with verified public Material Science facts, and a secure local database just for the file you uploaded.
+* **Smart Data Privacy:** When you upload a confidential document, it is stored in temporary memory. As soon as you close your session, the document is completely wiped from the server. 
+* **Cloud Workspaces:** Log in securely with Google. Your chat history and different project workspaces are saved and synced across all your devices.
 
 ---
 
-## 💻 Local Development Setup
+## 🏗️ How It Was Built
 
-To run NovaRAG locally, you need to spin up both the Python backend and the web frontend.
+This project is broken into two main parts to keep it fast and stable:
 
-### 1. Backend Setup
+1. **The Frontend (User Interface):** * Built with standard HTML, JavaScript, and Tailwind CSS.
+   * Hosted on Vercel. 
+   * Features a dark-mode design, syntax highlighting for code, and a multi-workspace sidebar.
+2. **The Backend (AI Engine):** * Built with Python and FastAPI, hosted on Render.
+   * Uses **Llama-3** (via Groq) for lightning-fast text generation.
+   * Uses **Pinecone** to store the permanent global Material Science knowledge.
+   * Uses **FAISS** to temporarily store user-uploaded files in RAM.
+
+---
+
+## 💻 Run It Yourself
+
+To run the backend server on your own computer:
+
 ```bash
 # Clone the repository
-git clone [https://github.com/yourusername/NovaRAG.git](https://github.com/yourusername/NovaRAG.git)
+git clone [https://github.com/ranaprathapreddy597/NovaRAG](https://github.com/ranaprathapreddy597/NovaRAG)
 cd NovaRAG
 
 # Create a virtual environment
 python -m venv venv
 source venv/bin/activate  # On Windows use: venv\Scripts\activate
 
-# Install dependencies
-pip install -r requirements.txt
+# Install requirements
+pip install fastapi uvicorn python-multipart PyPDF2 duckduckgo-search langchain langchain-community faiss-cpu sentence-transformers groq pinecone
+
+👨‍💻 Built By
+Rana Prathap Reddy Jeedipally
+
+Computer Science & Engineering Student
+
+Focused on Full-Stack Development and Practical AI Solutions
+
+📧 Email: ranaprathapreddyj@gmail.com
