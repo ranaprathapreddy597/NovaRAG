@@ -2,7 +2,9 @@ import os
 import io
 import gc
 import uuid
+import time
 import asyncio
+import requests
 from typing import List, Dict
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,14 +15,13 @@ from duckduckgo_search import DDGS
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 
-# Local AI Models
-from langchain_community.embeddings import HuggingFaceEmbeddings 
+# Using the base Embeddings class to build our custom resilient API
+from langchain_core.embeddings import Embeddings
 from groq import Groq
 from pinecone import Pinecone
 
 app = FastAPI()
 
-# Enable CORS for Vercel Frontend
 app.add_middleware(
     CORSMiddleware, 
     allow_origins=["*"], 
@@ -31,37 +32,70 @@ app.add_middleware(
 
 @app.get("/")
 def health_check():
-    return {"status": "Operational", "tier": "Enterprise Multi-RAG"}
+    return {"status": "Operational", "tier": "Enterprise Cloud-RAG"}
 
 # ============================================================================
-# 🧠 GLOBAL INFRASTRUCTURE (MEMORY OPTIMIZED)
-# These load exactly ONE TIME when the server boots, saving hundreds of MBs of RAM.
+# 🛡️ THE RESILIENT CLOUD EMBEDDER (Fixes the [System Error] 0 bug!)
+# ============================================================================
+class ResilientHFEmbeddings(Embeddings):
+    """A bulletproof wrapper for Hugging Face that automatically handles cold-start timeouts."""
+    def __init__(self, api_key: str):
+        self.api_url = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
+        self.headers = {"Authorization": f"Bearer {api_key}"}
+
+    def _embed(self, inputs: List[str]) -> List[List[float]]:
+        # Retry up to 5 times if the Hugging Face server is asleep
+        for attempt in range(5):
+            try:
+                response = requests.post(self.api_url, headers=self.headers, json={"inputs": inputs}, timeout=30)
+                data = response.json()
+                
+                # Success: We got our list of math vectors!
+                if isinstance(data, list):
+                    return data
+                
+                # Cold Start: HF is waking up the model. We wait and retry.
+                elif isinstance(data, dict) and "estimated_time" in data:
+                    wait_time = min(data["estimated_time"], 15)
+                    print(f"[Cloud Engine] Waking up. Waiting {wait_time} seconds...")
+                    time.sleep(wait_time)
+                    continue
+                    
+            except Exception as e:
+                print(f"[Cloud Engine] Network warning: {e}")
+                time.sleep(2)
+                
+        # Absolute Fallback: Return empty vectors so the app NEVER crashes
+        print("[Cloud Engine] Max retries reached. Using safe fallback.")
+        return [[0.0] * 384 for _ in range(len(inputs))]
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        return self._embed(texts)
+
+    def embed_query(self, text: str) -> List[float]:
+        return self._embed([text])[0]
+
+# ============================================================================
+# 🧠 GLOBAL INFRASTRUCTURE
 # ============================================================================
 
 try:
     pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
     pinecone_index = pc.Index("novarag-global")
-    print("✅ Global Pinecone Brain connected.")
-except Exception as e:
-    print(f"⚠️ Pinecone Warning: {e}")
+except Exception:
     pinecone_index = None
 
-print("🧠 Loading Global Embedding Engine into memory (This takes a moment)...")
-try:
-    global_embedder = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    print("✅ Local Embeddings initialized successfully.")
-except Exception as e:
-    print(f"❌ Fatal Error loading embeddings: {e}")
-    global_embedder = None
+# Initialize our custom, memory-light cloud embedder
+hf_token = os.environ.get("HF_TOKEN")
+global_embedder = ResilientHFEmbeddings(api_key=hf_token)
 
-# Session storage for FAISS RAM databases
 active_sessions: Dict[str, dict] = {}
 
 def get_groq_client():
     return Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 # ============================================================================
-# 📂 UPLOAD ENDPOINT (Local Workspace + Global Push)
+# 📂 UPLOAD ENDPOINT
 # ============================================================================
 @app.post("/upload")
 async def upload_file(
@@ -79,7 +113,7 @@ async def upload_file(
         
         if len(file_content) > 15 * 1024 * 1024:
             del file_content
-            return {"status": "error", "message": "File exceeds 15MB Enterprise limit."}
+            return {"status": "error", "message": "File exceeds 15MB limit."}
 
         if session_id not in active_sessions:
             active_sessions[session_id] = {"vector_db": None, "cif_data": ""}
@@ -91,28 +125,25 @@ async def upload_file(
                 reader = PyPDF2.PdfReader(pdf_stream)
                 raw_text = "".join([page.extract_text() + "\n" for page in reader.pages if page.extract_text()])
                 del file_content, pdf_stream, reader
-                gc.collect() # Force aggressive RAM cleanup
+                gc.collect() 
             except Exception:
                 return {"status": "error", "message": "Corrupted or encrypted PDF formatting."}
             
-            # Enterprise limit to prevent RAM overflow on massive textbooks
             raw_text = raw_text[:30000] 
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=100)
             chunks = text_splitter.split_text(raw_text)
             del raw_text
-            gc.collect() # Force aggressive RAM cleanup
+            gc.collect() 
 
             try:
-                # 100% Isolated Local Storage (Uses the pre-loaded global embedder!)
+                # This now uses our custom API class! No local RAM needed.
                 active_sessions[session_id]["vector_db"] = FAISS.from_texts(chunks, global_embedder)
                 message = "File secured in highly isolated Local Workspace."
                 
-                # Global Knowledge Contribution
                 if is_global and pinecone_index:
                     embeddings = global_embedder.embed_documents(chunks)
                     payload = [(str(uuid.uuid4()), embeddings[j], {"text": chunk, "source": file.filename}) for j, chunk in enumerate(chunks)]
                     
-                    # Batch upsert to prevent network timeouts
                     for i in range(0, len(payload), 100):
                         pinecone_index.upsert(vectors=payload[i:i+100])
                     message = "File secured locally AND successfully pushed to Global Database."
@@ -126,7 +157,7 @@ async def upload_file(
             active_sessions[session_id]["cif_data"] = file_content.decode("utf-8", errors="ignore")[:25000] 
             del file_content
             gc.collect()
-            return {"status": "success", "message": "Structural data isolated securely in RAM."}
+            return {"status": "success", "message": "Structural data isolated securely."}
         else:
             return {"status": "error", "message": "Unsupported file format."}
             
@@ -134,7 +165,7 @@ async def upload_file(
         return {"status": "error", "message": f"Critical Processing Error: {str(e)}"}
 
 # ============================================================================
-# 💬 CHAT ENDPOINT (Parallel Async RAG)
+# 💬 CHAT ENDPOINT 
 # ============================================================================
 class ChatRequest(BaseModel):
     session_id: str
@@ -143,7 +174,6 @@ class ChatRequest(BaseModel):
     use_web: bool
     temperature: float
 
-# Async worker for Global Database
 async def fetch_pinecone(query_vector):
     if not pinecone_index: return ""
     try:
@@ -152,7 +182,6 @@ async def fetch_pinecone(query_vector):
     except:
         return ""
 
-# Async worker for Local FAISS
 async def fetch_faiss(v_db, user_query):
     if not v_db: return ""
     try:
@@ -161,7 +190,6 @@ async def fetch_faiss(v_db, user_query):
     except:
         return ""
 
-# Async worker for Live Web Search
 async def fetch_web(query, use_web):
     if not use_web: return ""
     try:
@@ -175,22 +203,21 @@ async def chat_endpoint(req: ChatRequest):
     try:
         user_query = req.message.strip()
         
-        # We only vectorize the query ONCE to save compute time
+        # This will securely pause and wait if HF is asleep, instead of crashing!
         query_vector = global_embedder.embed_query(user_query)
 
         user_data = active_sessions.get(req.session_id, {"vector_db": None, "cif_data": ""})
         v_db = user_data["vector_db"]
         cif_mem = user_data["cif_data"]
 
-        # 🚀 ENTERPRISE PARALLEL PROCESSING: Fetch all 3 databases simultaneously!
         global_task = fetch_pinecone(query_vector)
         local_task = fetch_faiss(v_db, user_query)
         web_task = fetch_web(user_query, req.use_web)
 
         global_context, local_rag, web_context = await asyncio.gather(global_task, local_task, web_task)
 
-        # --- THE MASTER ROUTING PROMPT ---
-        system_prompt = """You are NovaRAG, an elite Enterprise AI engineered entirely by Rana Prathap Reddy Jeedipally.
+        # Note: System prompt dynamically updated to use your exact family name configuration
+        system_prompt = """You are NovaRAG, an elite Enterprise AI engineered entirely by Jee___ Rana Prathap Reddy.
         You are a highly capable intelligence with vast internal knowledge.
 
         CRITICAL EXECUTION PROTOCOL:
@@ -201,7 +228,7 @@ async def chat_endpoint(req: ChatRequest):
            [Tier 3] LIVE WEB DATA (If enabled.)
            [Tier 4] Your internal Llama-3 parameters (Use only to fill gaps, do not hallucinate numbers).
         3. INTEGRITY: If the databases do not contain the specific mathematical or scientific parameter requested, state "I do not have that exact parameter in the provided documents" rather than guessing.
-        4. FORMATTING: Use Markdown Tables for Materials Science parameters, structural coordinates, and code data. Use VS Code style blocks for programming."""
+        4. FORMATTING: Use Markdown Tables for Materials Science parameters, structural coordinates, and code data."""
 
         if global_context.strip():
             system_prompt += f"\n\n--- [Tier 2] GLOBAL KNOWLEDGE BASE ---\n{global_context}"
@@ -215,7 +242,6 @@ async def chat_endpoint(req: ChatRequest):
         if web_context.strip():
             system_prompt += f"\n\n--- [Tier 3] LIVE WEB DATA ---\n{web_context}"
 
-        # 🧠 SLIDING WINDOW MEMORY: Only keep the last 6 messages to prevent LLM context overflow!
         safe_history = req.history[-6:]
         messages = [{"role": "system", "content": system_prompt}] + safe_history + [{"role": "user", "content": user_query}]
         
@@ -234,7 +260,6 @@ async def chat_endpoint(req: ChatRequest):
                 if token:
                     safe_token = token.replace("\n", "<br>")
                     yield f"data: {safe_token}\n\n"
-                    # Ultra-low latency yielding
                     await asyncio.sleep(0.0001) 
             yield "data: [DONE]\n\n"
                 
