@@ -10,12 +10,10 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-import PyPDF2
+import pdfplumber
 from duckduckgo_search import DDGS
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-
-# Using the base Embeddings class to build our custom resilient API
 from langchain_core.embeddings import Embeddings
 from groq import Groq
 from pinecone import Pinecone
@@ -30,43 +28,26 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-@app.get("/")
-def health_check():
-    return {"status": "Operational", "tier": "Enterprise Cloud-RAG"}
-
 # ============================================================================
-# 🛡️ THE RESILIENT CLOUD EMBEDDER (Fixes the [System Error] 0 bug!)
+# 🛡️ THE RESILIENT CLOUD EMBEDDER (Zero-Crash Architecture)
 # ============================================================================
 class ResilientHFEmbeddings(Embeddings):
-    """A bulletproof wrapper for Hugging Face that automatically handles cold-start timeouts."""
     def __init__(self, api_key: str):
         self.api_url = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
         self.headers = {"Authorization": f"Bearer {api_key}"}
 
     def _embed(self, inputs: List[str]) -> List[List[float]]:
-        # Retry up to 5 times if the Hugging Face server is asleep
         for attempt in range(5):
             try:
                 response = requests.post(self.api_url, headers=self.headers, json={"inputs": inputs}, timeout=30)
                 data = response.json()
-                
-                # Success: We got our list of math vectors!
                 if isinstance(data, list):
                     return data
-                
-                # Cold Start: HF is waking up the model. We wait and retry.
                 elif isinstance(data, dict) and "estimated_time" in data:
-                    wait_time = min(data["estimated_time"], 15)
-                    print(f"[Cloud Engine] Waking up. Waiting {wait_time} seconds...")
-                    time.sleep(wait_time)
+                    time.sleep(min(data["estimated_time"], 15))
                     continue
-                    
-            except Exception as e:
-                print(f"[Cloud Engine] Network warning: {e}")
+            except Exception:
                 time.sleep(2)
-                
-        # Absolute Fallback: Return empty vectors so the app NEVER crashes
-        print("[Cloud Engine] Max retries reached. Using safe fallback.")
         return [[0.0] * 384 for _ in range(len(inputs))]
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
@@ -78,24 +59,21 @@ class ResilientHFEmbeddings(Embeddings):
 # ============================================================================
 # 🧠 GLOBAL INFRASTRUCTURE
 # ============================================================================
-
 try:
     pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
     pinecone_index = pc.Index("novarag-global")
 except Exception:
     pinecone_index = None
 
-# Initialize our custom, memory-light cloud embedder
 hf_token = os.environ.get("HF_TOKEN")
 global_embedder = ResilientHFEmbeddings(api_key=hf_token)
-
 active_sessions: Dict[str, dict] = {}
 
 def get_groq_client():
     return Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 # ============================================================================
-# 📂 UPLOAD ENDPOINT
+# 📂 UPLOAD ENDPOINT (Now with Advanced Table Extraction)
 # ============================================================================
 @app.post("/upload")
 async def upload_file(
@@ -122,31 +100,44 @@ async def upload_file(
             active_sessions[session_id]["cif_data"] = "" 
             try:
                 pdf_stream = io.BytesIO(file_content)
-                reader = PyPDF2.PdfReader(pdf_stream)
-                raw_text = "".join([page.extract_text() + "\n" for page in reader.pages if page.extract_text()])
-                del file_content, pdf_stream, reader
+                raw_text = ""
+                
+                # Enterprise Upgrade: pdfplumber extracts exact table rows/columns
+                with pdfplumber.open(pdf_stream) as pdf:
+                    for page in pdf.pages:
+                        extracted_text = page.extract_text()
+                        if extracted_text:
+                            raw_text += extracted_text + "\n"
+                        
+                        tables = page.extract_tables()
+                        for table in tables:
+                            raw_text += "\n--- EXTRACTED DATA TABLE ---\n"
+                            for row in table:
+                                cleaned_row = [str(cell).replace('\n', ' ') if cell else "" for cell in row]
+                                raw_text += " | ".join(cleaned_row) + "\n"
+                            raw_text += "---------------------------\n"
+                            
+                del file_content, pdf_stream
                 gc.collect() 
-            except Exception:
-                return {"status": "error", "message": "Corrupted or encrypted PDF formatting."}
+            except Exception as e:
+                return {"status": "error", "message": f"PDF parsing error: {str(e)}"}
             
-            raw_text = raw_text[:30000] 
-            text_splitter = RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=100)
+            raw_text = raw_text[:40000] 
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=700, chunk_overlap=150)
             chunks = text_splitter.split_text(raw_text)
             del raw_text
             gc.collect() 
 
             try:
-                # This now uses our custom API class! No local RAM needed.
                 active_sessions[session_id]["vector_db"] = FAISS.from_texts(chunks, global_embedder)
-                message = "File secured in highly isolated Local Workspace."
+                message = "File secured in Local Workspace. Tables extracted successfully."
                 
                 if is_global and pinecone_index:
                     embeddings = global_embedder.embed_documents(chunks)
                     payload = [(str(uuid.uuid4()), embeddings[j], {"text": chunk, "source": file.filename}) for j, chunk in enumerate(chunks)]
-                    
                     for i in range(0, len(payload), 100):
                         pinecone_index.upsert(vectors=payload[i:i+100])
-                    message = "File secured locally AND successfully pushed to Global Database."
+                    message = "File secured locally AND pushed to Global Database."
 
                 return {"status": "success", "message": message}
             except Exception as e:
@@ -165,7 +156,7 @@ async def upload_file(
         return {"status": "error", "message": f"Critical Processing Error: {str(e)}"}
 
 # ============================================================================
-# 💬 CHAT ENDPOINT 
+# 💬 CHAT ENDPOINT (With Parallel Image Fetching)
 # ============================================================================
 class ChatRequest(BaseModel):
     session_id: str
@@ -190,57 +181,61 @@ async def fetch_faiss(v_db, user_query):
     except:
         return ""
 
-async def fetch_web(query, use_web):
+async def fetch_web_and_images(query, use_web):
     if not use_web: return ""
     try:
-        results = await asyncio.to_thread(lambda: list(DDGS().text(query, max_results=2)))
-        return "\n".join([f"- {res['title']}: {res['body']}" for res in results]) if results else ""
+        # Fetch web text and exactly 1 image URL simultaneously
+        text_results = await asyncio.to_thread(lambda: list(DDGS().text(query, max_results=2)))
+        image_results = await asyncio.to_thread(lambda: list(DDGS().images(query, max_results=1)))
+        
+        context = ""
+        if text_results:
+            context += "\n--- LIVE WEB DATA ---\n" + "\n".join([f"- {res['title']}: {res['body']}" for res in text_results])
+        if image_results:
+            context += f"\n\n[SYSTEM RESOURCE: DIAGRAM AVAILABLE AT URL: {image_results[0]['image']}]"
+        return context
     except:
+        # If Render IP is blocked by DuckDuckGo, fail silently without breaking the app
         return ""
 
 @app.post("/chat")
 async def chat_endpoint(req: ChatRequest):
     try:
         user_query = req.message.strip()
-        
-        # This will securely pause and wait if HF is asleep, instead of crashing!
         query_vector = global_embedder.embed_query(user_query)
 
         user_data = active_sessions.get(req.session_id, {"vector_db": None, "cif_data": ""})
         v_db = user_data["vector_db"]
         cif_mem = user_data["cif_data"]
 
+        # Run all three retrievers in parallel
         global_task = fetch_pinecone(query_vector)
         local_task = fetch_faiss(v_db, user_query)
-        web_task = fetch_web(user_query, req.use_web)
+        web_task = fetch_web_and_images(user_query, req.use_web)
 
         global_context, local_rag, web_context = await asyncio.gather(global_task, local_task, web_task)
 
-        # Note: System prompt dynamically updated to use your exact family name configuration
-        system_prompt = """You are NovaRAG, an elite Enterprise AI engineered entirely by Jee___ Rana Prathap Reddy.
-        You are a highly capable intelligence with vast internal knowledge.
+        # Dynamic Master Prompt engineered for formatting and diagrams
+        system_prompt = """You are NovaRAG, an elite Enterprise AI for Material Science engineered by Jee____ Rana Prathap Reddy.
 
         CRITICAL EXECUTION PROTOCOL:
-        1. CONVERSATION DETECTOR: If the user query is a simple greeting (e.g., "hi", "hello"), social pleasantry, or generic question ("how are you"), IGNORE the database context below. Respond naturally, warmly, and briefly.
-        2. DATA HIERARCHY: If the user asks a factual, technical, or document-related question, you MUST synthesize your answer using the provided context in this strict order of authority:
-           [Tier 1] LOCAL WORKSPACE (Confidential user uploads. This is Absolute Truth.)
+        1. CONVERSATION DETECTOR: If the user query is a simple greeting (e.g., "hi", "hello"), respond naturally and briefly.
+        2. DATA HIERARCHY: Synthesize your answer using the provided context in this strict order:
+           [Tier 1] LOCAL WORKSPACE (Confidential user uploads. Absolute Truth.)
            [Tier 2] GLOBAL KNOWLEDGE BASE (Verified Pinecone facts.)
            [Tier 3] LIVE WEB DATA (If enabled.)
-           [Tier 4] Your internal Llama-3 parameters (Use only to fill gaps, do not hallucinate numbers).
-        3. INTEGRITY: If the databases do not contain the specific mathematical or scientific parameter requested, state "I do not have that exact parameter in the provided documents" rather than guessing.
-        4. FORMATTING: Use Markdown Tables for Materials Science parameters, structural coordinates, and code data."""
+        3. INTEGRITY: Do not hallucinate numbers or chemical structures. If it is not in the context, say so.
+        4. TABLES: If extracting parameters or displaying numerical data, you MUST use Markdown tables.
+        5. DIAGRAMS: If the context provides a [SYSTEM RESOURCE: DIAGRAM AVAILABLE AT URL: ...], you MUST embed it in your response using Markdown image syntax: `![Diagram Description](URL_HERE)`."""
 
         if global_context.strip():
             system_prompt += f"\n\n--- [Tier 2] GLOBAL KNOWLEDGE BASE ---\n{global_context}"
-            
         if local_rag.strip():
             system_prompt += f"\n\n--- [Tier 1] LOCAL WORKSPACE (CONFIDENTIAL PDF) ---\n{local_rag}"
-
         if cif_mem.strip():
             system_prompt += f"\n\n--- [Tier 1] LOCAL WORKSPACE (CIF DATA) ---\n{cif_mem}"
-            
         if web_context.strip():
-            system_prompt += f"\n\n--- [Tier 3] LIVE WEB DATA ---\n{web_context}"
+            system_prompt += f"{web_context}"
 
         safe_history = req.history[-6:]
         messages = [{"role": "system", "content": system_prompt}] + safe_history + [{"role": "user", "content": user_query}]
@@ -266,6 +261,6 @@ async def chat_endpoint(req: ChatRequest):
         return StreamingResponse(response_generator(), media_type="text/event-stream")
         
     except Exception as e:
-        safe_error = f"**[System Alert]** Graceful Degradation active. Error encountered: {str(e)}".replace("\n", "<br>")
+        safe_error = f"**[System Alert]** Graceful Degradation active. Error: {str(e)}".replace("\n", "<br>")
         async def error_generator(): yield f"data: {safe_error}\n\n"
         return StreamingResponse(error_generator(), media_type="text/event-stream")

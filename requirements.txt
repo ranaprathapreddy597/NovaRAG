@@ -1,12 +1,11 @@
 fastapi
 uvicorn
 python-multipart
-PyPDF2
+pdfplumber
 duckduckgo-search
 langchain
-faiss-cpu
 langchain-community
-langchain-text-splitters
+faiss-cpu
 groq
-huggingface-hub
-pinecone
+pinecone-client
+requests
