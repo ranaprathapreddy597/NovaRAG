@@ -7,5 +7,5 @@ langchain
 langchain-community
 faiss-cpu
 groq
-pinecone-client
+pinecone
 requests
