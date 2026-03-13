@@ -29,7 +29,7 @@ app.add_middleware(
 )
 
 # ============================================================================
-# 🛡️ THE RESILIENT CLOUD EMBEDDER (Zero-Crash Architecture)
+# 🛡️ RESILIENT CLOUD EMBEDDER (Zero-Crash Architecture)
 # ============================================================================
 class ResilientHFEmbeddings(Embeddings):
     def __init__(self, api_key: str):
@@ -73,7 +73,7 @@ def get_groq_client():
     return Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 # ============================================================================
-# 📂 UPLOAD ENDPOINT (Now with Advanced Table Extraction)
+# 📂 UPLOAD ENDPOINT
 # ============================================================================
 @app.post("/upload")
 async def upload_file(
@@ -102,7 +102,6 @@ async def upload_file(
                 pdf_stream = io.BytesIO(file_content)
                 raw_text = ""
                 
-                # Enterprise Upgrade: pdfplumber extracts exact table rows/columns
                 with pdfplumber.open(pdf_stream) as pdf:
                     for page in pdf.pages:
                         extracted_text = page.extract_text()
@@ -130,7 +129,7 @@ async def upload_file(
 
             try:
                 active_sessions[session_id]["vector_db"] = FAISS.from_texts(chunks, global_embedder)
-                message = "File secured in Local Workspace. Tables extracted successfully."
+                message = "File secured. Tables and text extracted successfully."
                 
                 if is_global and pinecone_index:
                     embeddings = global_embedder.embed_documents(chunks)
@@ -156,7 +155,7 @@ async def upload_file(
         return {"status": "error", "message": f"Critical Processing Error: {str(e)}"}
 
 # ============================================================================
-# 💬 CHAT ENDPOINT (With Parallel Image Fetching)
+# 💬 CHAT ENDPOINT (With Intelligent Routing & Fallbacks)
 # ============================================================================
 class ChatRequest(BaseModel):
     session_id: str
@@ -183,20 +182,22 @@ async def fetch_faiss(v_db, user_query):
 
 async def fetch_web_and_images(query, use_web):
     if not use_web: return ""
+    context = ""
     try:
-        # Fetch web text and exactly 1 image URL simultaneously
-        text_results = await asyncio.to_thread(lambda: list(DDGS().text(query, max_results=2)))
-        image_results = await asyncio.to_thread(lambda: list(DDGS().images(query, max_results=1)))
-        
-        context = ""
-        if text_results:
-            context += "\n--- LIVE WEB DATA ---\n" + "\n".join([f"- {res['title']}: {res['body']}" for res in text_results])
-        if image_results:
-            context += f"\n\n[SYSTEM RESOURCE: DIAGRAM AVAILABLE AT URL: {image_results[0]['image']}]"
-        return context
-    except:
-        # If Render IP is blocked by DuckDuckGo, fail silently without breaking the app
-        return ""
+        # Using context manager for safer network connection
+        with DDGS() as ddgs:
+            text_results = list(ddgs.text(query, max_results=2))
+            if text_results:
+                context += "\n--- LIVE WEB DATA ---\n" + "\n".join([f"- {res['title']}: {res['body']}" for res in text_results])
+            
+            # Fetch exactly 1 image
+            image_results = list(ddgs.images(query, max_results=1))
+            if image_results:
+                context += f"\n\nIMAGE_URL: {image_results[0]['image']}"
+    except Exception:
+        # Fail silently if Render IP is blocked. The AI will just use its internal knowledge.
+        pass
+    return context
 
 @app.post("/chat")
 async def chat_endpoint(req: ChatRequest):
@@ -208,25 +209,21 @@ async def chat_endpoint(req: ChatRequest):
         v_db = user_data["vector_db"]
         cif_mem = user_data["cif_data"]
 
-        # Run all three retrievers in parallel
         global_task = fetch_pinecone(query_vector)
         local_task = fetch_faiss(v_db, user_query)
         web_task = fetch_web_and_images(user_query, req.use_web)
 
         global_context, local_rag, web_context = await asyncio.gather(global_task, local_task, web_task)
 
-        # Dynamic Master Prompt engineered for formatting and diagrams
-        system_prompt = """You are NovaRAG, an elite Enterprise AI for Material Science engineered by Jee____ Rana Prathap Reddy.
+        # THE MATURE SYSTEM PROMPT
+        system_prompt = """You are NovaRAG, an elite, highly mature Enterprise AI for Material Science engineered by Rana Prathap Reddy Jeedipally.
 
-        CRITICAL EXECUTION PROTOCOL:
-        1. CONVERSATION DETECTOR: If the user query is a simple greeting (e.g., "hi", "hello"), respond naturally and briefly.
-        2. DATA HIERARCHY: Synthesize your answer using the provided context in this strict order:
-           [Tier 1] LOCAL WORKSPACE (Confidential user uploads. Absolute Truth.)
-           [Tier 2] GLOBAL KNOWLEDGE BASE (Verified Pinecone facts.)
-           [Tier 3] LIVE WEB DATA (If enabled.)
-        3. INTEGRITY: Do not hallucinate numbers or chemical structures. If it is not in the context, say so.
-        4. TABLES: If extracting parameters or displaying numerical data, you MUST use Markdown tables.
-        5. DIAGRAMS: If the context provides a [SYSTEM RESOURCE: DIAGRAM AVAILABLE AT URL: ...], you MUST embed it in your response using Markdown image syntax: `![Diagram Description](URL_HERE)`."""
+        CRITICAL BEHAVIORAL PROTOCOL:
+        1. CONVERSATION: If the user says hello or asks how you are, respond naturally and warmly. Do not output scientific data.
+        2. DATA HIERARCHY: For factual questions, rely on the context provided below in this order: [Tier 1] LOCAL WORKSPACE > [Tier 2] GLOBAL KNOWLEDGE > [Tier 3] WEB DATA.
+        3. FORMATTING (TABLES): Use Markdown tables ONLY for displaying multi-column numerical data, lattice parameters, or structured comparisons. DO NOT use tables for standard paragraphs or general explanations.
+        4. DIAGRAMS & IMAGES: If a context block provides an "IMAGE_URL: [url]", you may embed it in your response using markdown `![Diagram Description](url)`. IF NO IMAGE URL IS PROVIDED, do NOT mention it, do not apologize, and do not reference your system instructions. Just answer the question normally using text.
+        5. PROFESSIONALISM: Never say "Based on the context" or "As an AI". Answer directly and authoritatively."""
 
         if global_context.strip():
             system_prompt += f"\n\n--- [Tier 2] GLOBAL KNOWLEDGE BASE ---\n{global_context}"
@@ -235,7 +232,7 @@ async def chat_endpoint(req: ChatRequest):
         if cif_mem.strip():
             system_prompt += f"\n\n--- [Tier 1] LOCAL WORKSPACE (CIF DATA) ---\n{cif_mem}"
         if web_context.strip():
-            system_prompt += f"{web_context}"
+            system_prompt += f"\n{web_context}"
 
         safe_history = req.history[-6:]
         messages = [{"role": "system", "content": system_prompt}] + safe_history + [{"role": "user", "content": user_query}]
